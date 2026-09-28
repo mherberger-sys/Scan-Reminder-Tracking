@@ -166,6 +166,7 @@ button.btn-small{padding:5px 10px;font-size:.72rem;}
 
 .page-tabs-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
 .page-tabs-row[hidden]{display:none;}
+.page-tabs-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .brand-title{font-size:1rem;font-weight:800;color:var(--ink);letter-spacing:-.01em;white-space:nowrap;}
 .lang-switch{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:2px;gap:2px;flex:none;background:var(--surface);}
 .lang-btn{font-family:inherit;font-size:.72rem;font-weight:700;letter-spacing:.03em;color:var(--muted);background:transparent;border:none;border-radius:999px;padding:5px 12px;cursor:pointer;transition:background .15s ease,color .15s ease;}

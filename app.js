@@ -105,7 +105,7 @@
   const ACTIVE_PAGE_STORAGE_KEY = 'src_active_page_v1';
   const PAGES = ['home','dashboard','files','trends','team','docs'];
 
-  // Un vrai rechargement (F5/Cmd+R ou bouton « Recharger ») restaure l'état mémorisé (page active,
+  // Un vrai rechargement (F5/Cmd+R ou bouton « Actualiser ») restaure l'état mémorisé (page active,
   // fiche docteur...) ; une ouverture fraîche de l'app repart toujours de l'Accueil.
   function isReloadNavigation(){
     try{
@@ -2669,7 +2669,7 @@
     renderHistory();
   });
 
-  // Bouton « Recharger » : indispensable dans l'app installée (fenêtre sans barre d'adresse ni
+  // Bouton « Actualiser » : indispensable dans l'app installée (fenêtre sans barre d'adresse ni
   // bouton de rechargement). Demande d'abord au service worker de vérifier une nouvelle version,
   // puis recharge — le service worker étant en « réseau d'abord », les fichiers à jour sont servis.
   document.getElementById('reloadAppBtn').addEventListener('click', async ()=>{
