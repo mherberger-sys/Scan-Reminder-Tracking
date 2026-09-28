@@ -1,0 +1,2403 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title data-i18n="pageTitle">Suivi Relance Scan — Collab</title>
+<meta name="description" content="Suivi Relance Scan — vue collective de l'équipe">
+<meta name="theme-color" content="#00A3AD">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Relance Scan">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#F9F8F7;
+  --surface:#FFFFFF;
+  --surface-2:#EAF6F6;
+  --border:#E1E7E6;
+  --ink:#191614;
+  --ink-2:#4A4542;
+  --muted:#726B67;
+  --accent:#00A3AD;
+  --accent-strong:#00454C;
+  --accent-soft:#E1F4F5;
+  --good:#1E8E5A;
+  --good-soft:#E4F5EC;
+  --bad:#B3392C;
+  --bad-soft:#FBEAE7;
+  --warn:#A8791F;
+  --warn-soft:#FBF1DE;
+  --shadow: 0 1px 2px rgba(25,22,20,0.06), 0 4px 14px rgba(25,22,20,0.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B1716; --surface:#12211F; --surface-2:#173330; --border:#28413E;
+    --ink:#F3F0EE; --ink-2:#C9C2BE; --muted:#93A6A4;
+    --accent:#2FC7CE; --accent-strong:#63DEE2; --accent-soft:rgba(47,199,206,0.14);
+    --good:#49C98A; --good-soft:rgba(73,201,138,0.14);
+    --bad:#E5484D; --bad-soft:rgba(229,72,77,0.14);
+    --warn:#D9A94D; --warn-soft:rgba(217,169,77,0.14);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px rgba(0,0,0,0.25);
+  }
+}
+*{box-sizing:border-box;}
+body{
+  background:
+    radial-gradient(1200px 480px at 12% -10%, var(--accent-soft), transparent 60%),
+    var(--bg);
+  color:var(--ink); font-family:"Montserrat", system-ui, -apple-system, sans-serif;
+  font-size:15px; line-height:1.45; padding:40px 20px 70px; margin:0;
+}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:26px;}
+.top-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:6px;width:fit-content;
+  font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--accent-strong);
+  background:var(--accent-soft);border-radius:999px;padding:5px 12px;margin:0 0 12px;
+}
+h1{font-size:1.7rem;font-weight:800;margin:0;letter-spacing:-.02em;}
+h2{font-size:.98rem;font-weight:700;margin:0;}
+.sub{color:var(--muted);font-size:.92rem;margin:8px 0 0;max-width:60ch;}
+.privacy{
+  display:flex;align-items:flex-start;gap:9px;font-size:.78rem;color:var(--muted);
+  border:1px solid var(--border);background:var(--surface);border-radius:11px;padding:12px 15px;
+}
+.privacy svg{flex:none;color:var(--accent);margin-top:1px;}
+
+.lang-switch{display:inline-flex;border:1px solid var(--border);border-radius:999px;padding:2px;gap:2px;flex:none;background:var(--surface);}
+.lang-btn{font-family:inherit;font-size:.72rem;font-weight:700;letter-spacing:.03em;color:var(--muted);background:transparent;border:none;border-radius:999px;padding:5px 12px;cursor:pointer;transition:background .15s ease,color .15s ease;}
+.lang-btn:hover{color:var(--ink);}
+.lang-btn.active{background:var(--accent);color:#fff;}
+
+.page-tabs{display:flex;gap:8px;}
+.page-tab{
+  font-family:inherit;font-size:.82rem;font-weight:600;color:var(--muted);
+  background:transparent;border:1px solid var(--border);border-radius:999px;
+  padding:8px 18px;cursor:pointer;transition:color .15s ease,background .15s ease,border-color .15s ease;
+}
+.page-tab:hover{color:var(--ink);}
+.page-tab.active{color:var(--accent-strong);background:var(--surface-2);border-color:var(--accent);}
+.page[hidden]{display:none;}
+#trendsEmpty[hidden], #trendsBody[hidden]{display:none;}
+
+.flow{display:flex;flex-direction:column;gap:14px;}
+.step-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);
+  padding:22px;position:relative;transition:opacity .2s ease;
+}
+.step-card[hidden]{display:none;}
+.step-card.done{opacity:.72;}
+.step-head{display:flex;align-items:center;gap:11px;margin-bottom:14px;}
+.step-num{
+  width:26px;height:26px;border-radius:999px;background:var(--accent-soft);color:var(--accent-strong);
+  font-family:"IBM Plex Mono",monospace;font-size:.76rem;font-weight:700;
+  display:flex;align-items:center;justify-content:center;flex:none;
+}
+.step-card.done .step-num{background:var(--good-soft);color:var(--good);}
+
+button.google-btn{
+  display:inline-flex;align-items:center;gap:10px;background:#fff;color:#3C4043;border:1px solid #DADCE0;
+  border-radius:9px;padding:10px 18px 10px 14px;font-family:inherit;font-size:.86rem;font-weight:600;
+  cursor:pointer;box-shadow:var(--shadow);transition:box-shadow .15s ease,background .15s ease;
+}
+button.google-btn:hover:not(:disabled){background:#F7F8F8;}
+button.google-btn:disabled{opacity:.55;cursor:not-allowed;box-shadow:none;}
+button.ghost{
+  background:transparent;color:var(--ink-2);border:1px solid var(--border);border-radius:9px;
+  padding:10px 16px;font-family:inherit;font-size:.82rem;font-weight:500;cursor:pointer;
+}
+button.ghost:hover{border-color:var(--accent);color:var(--accent-strong);}
+button.btn-small{padding:7px 13px;font-size:.76rem;}
+.hint{font-size:.78rem;color:var(--muted);margin:12px 0 0;}
+.dropzone{
+  border:1.5px dashed var(--border);border-radius:12px;padding:26px 16px;
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;
+  cursor:pointer;transition:border-color .15s ease, background .15s ease;background:var(--bg);
+}
+.dropzone:hover, .dropzone.drag{border-color:var(--accent);background:var(--accent-soft);}
+.dropzone svg{color:var(--accent);}
+.dropzone span{font-size:.85rem;color:var(--ink-2);max-width:36ch;}
+.save-input{
+  font-family:"IBM Plex Mono",monospace;font-size:.78rem;color:var(--ink);background:var(--bg);
+  border:1px solid var(--border);border-radius:8px;padding:7px 10px;
+}
+input[type=file]{display:none;}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;}
+.tile{background:var(--bg);border:1px solid var(--border);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:4px;}
+.tile-label{font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);}
+.tile-value{font-family:"IBM Plex Mono",monospace;font-size:1.7rem;font-weight:600;}
+.tile-value.good{color:var(--good);}
+.tile-sub{font-size:.75rem;color:var(--muted);}
+.mini-table{width:100%;border-collapse:collapse;font-size:.82rem;margin-top:14px;}
+.mini-table thead th{
+  text-align:left;font-size:.68rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);padding:8px;border-bottom:1px solid var(--border);
+}
+.mini-table thead th.num{text-align:right;}
+.mini-table tbody td{padding:8px;border-bottom:1px solid var(--border);}
+.mini-table tbody td.mono-num{font-family:"IBM Plex Mono",monospace;text-align:right;}
+.mini-table tbody tr:last-child td{border-bottom:none;}
+.mini-table .rank{color:var(--muted);font-family:"IBM Plex Mono",monospace;width:1%;}
+.mini-table .pct{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums;text-align:right;font-weight:600;}
+.leaderboard-scroll{max-height:230px;overflow-y:auto;}
+.empty-state{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;color:var(--muted);padding:18px 10px;}
+.empty-state svg{color:var(--border);}
+.status-row{display:flex;align-items:center;gap:8px;margin-top:12px;}
+.status-dot{width:8px;height:8px;border-radius:999px;background:var(--border);flex:none;}
+.status-dot.ok{background:var(--good);}
+.status-dot.err{background:var(--bad);}
+
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 22px;border-bottom:1px solid var(--border);}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.filters select{font-family:inherit;font-size:.82rem;color:var(--ink);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;}
+.charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:26px;padding:22px;}
+.charts-grid+.charts-grid{border-top:1px solid var(--border);}
+.chart-card{display:flex;flex-direction:column;gap:8px;min-width:0;}
+.chart-title{font-size:.82rem;font-weight:700;color:var(--ink-2);margin:0;}
+.table-scroll{overflow-x:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.table-scroll::-webkit-scrollbar{width:10px;height:10px;}
+.table-scroll::-webkit-scrollbar-track{background:transparent;}
+.table-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:999px;border:2px solid var(--surface);background-clip:padding-box;}
+.table-scroll::-webkit-scrollbar-thumb:hover{background:var(--muted);}
+.changelog-scroll{max-height:380px;overflow-y:auto;}
+.changelog-list{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;}
+.changelog-list li{padding:10px 4px;border-bottom:1px solid var(--border);}
+.changelog-list li:last-child{border-bottom:none;}
+.changelog-version{font-family:"IBM Plex Mono",monospace;font-weight:600;color:var(--ink);}
+.changelog-date{color:var(--muted);font-size:.78rem;margin-left:8px;}
+.changelog-desc{display:block;margin-top:3px;font-size:.82rem;color:var(--ink-2);}
+.chart-wrap{position:relative;}
+.chart-wrap svg{display:block;width:100%;height:auto;}
+.chart-tooltip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.72rem;font-weight:500;padding:4px 8px;border-radius:6px;white-space:nowrap;opacity:0;transform:translate(-50%,-115%);transition:opacity .1s ease;z-index:2;}
+.legend-dynamic{color:var(--ink-2);font-style:italic;font-size:.78rem;margin:4px 0 0;}
+.legend-dynamic strong{color:var(--ink);font-style:normal;}
+
+.timebars{display:flex;flex-direction:column;gap:10px;padding-top:4px;}
+.timebar-row{display:flex;align-items:center;gap:10px;}
+.timebar-label{flex:0 0 140px;font-size:.76rem;color:var(--ink-2);}
+.timebar-track{flex:1;height:10px;background:var(--surface-2);border-radius:999px;overflow:hidden;}
+.timebar-share{height:100%;box-sizing:border-box;border-right:2px solid var(--surface);}
+.timebar-fill{height:100%;background:var(--accent);}
+.timebar-value{flex:0 0 auto;min-width:150px;text-align:right;font-family:"IBM Plex Mono",monospace;font-size:.76rem;font-variant-numeric:tabular-nums;}
+.timebar-value strong{font-size:.9rem;font-weight:600;}
+.timebar-count{color:var(--muted);}
+
+button.link-btn{background:none;border:none;padding:0;margin-left:6px;color:var(--accent-strong);font-family:inherit;font-size:.78rem;cursor:pointer;line-height:1;vertical-align:middle;}
+button.link-btn:hover{text-decoration:underline;}
+
+.scorecard-select-row{display:flex;align-items:center;gap:8px;}
+.scorecard-select-row select{font-family:inherit;font-size:.82rem;color:var(--ink);background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:7px 10px;width:100%;max-width:280px;}
+.scorecard-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:4px;}
+.trend-line{display:flex;align-items:center;gap:6px;margin-top:8px;}
+.trend-emoji{font-size:1.4rem;line-height:1;}
+.scorecard-timeline{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:0;font-size:.78rem;color:var(--ink-2);}
+.scorecard-timeline li{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);}
+.scorecard-timeline li:last-child{border-bottom:none;}
+.scorecard-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+
+.entry-filter-list{
+  display:flex;flex-direction:column;gap:1px;min-width:280px;max-width:100%;
+  max-height:172px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;
+  background:var(--bg);padding:5px;
+}
+.entry-filter-row{
+  display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:7px;
+  font-size:.8rem;color:var(--ink-2);cursor:pointer;user-select:none;
+}
+.entry-filter-row:hover{background:var(--surface-2);}
+.entry-filter-row input[type=checkbox]{width:14px;height:14px;flex:none;accent-color:var(--accent);cursor:pointer;}
+.entry-filter-row.checked{color:var(--ink);font-weight:600;background:var(--accent-soft);}
+.entry-filter-row.checked:hover{background:var(--accent-soft);}
+.entry-filter-empty{padding:8px;font-size:.8rem;color:var(--muted);}
+.profile-resolved-row{display:flex;flex-wrap:wrap;align-items:center;gap:5px 10px;font-size:.78rem;color:var(--muted);margin:0;}
+.profile-resolved-row .profile-item{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;}
+.profile-sep{color:var(--border);}
+
+.team-chip-list{display:flex;flex-wrap:wrap;gap:8px;}
+.team-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:6px 8px 6px 12px;font-size:.82rem;color:var(--ink-2);}
+.team-chip-count{font-family:"IBM Plex Mono",monospace;font-size:.7rem;color:var(--muted);background:var(--bg);border-radius:999px;padding:1px 7px;}
+.team-chip-remove{background:none;border:none;color:var(--muted);cursor:pointer;font-size:1rem;line-height:1;padding:2px 4px;border-radius:999px;font-family:inherit;}
+.team-chip-remove:hover{color:var(--bad);background:var(--bad-soft);}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(0);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:9px;font-size:.82rem;opacity:0;pointer-events:none;transition:opacity .2s ease, transform .2s ease;box-shadow:var(--shadow);z-index:10;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="top-row">
+      <p class="eyebrow">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M17 3v4M7 3v4M4 9h16M6 5h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z"/></svg>
+        <span data-i18n="eyebrow">Follow-up &rarr; scan &middot; collab</span>
+      </p>
+      <div class="lang-switch" role="group" aria-label="Language">
+        <button type="button" class="lang-btn" id="langBtnEn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" id="langBtnFr" data-lang="fr">FR</button>
+      </div>
+    </div>
+    <h1 data-i18n="title">Suivi Relance Scan — Shared view</h1>
+    <p class="sub" data-i18n="subtitle">Drop the JSON exports from your local tool to share them with the team, and see everyone's combined stats at a glance.</p>
+  </header>
+
+  <div class="privacy">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 8.7 8 11 4.6-2.3 8-6 8-11V5l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+    <span data-i18n="privacy">Data you send here goes directly from your browser to the shared Google Drive folder, using your own account — this page itself stores nothing and never sees your data.</span>
+  </div>
+
+  <nav class="page-tabs">
+    <button type="button" class="page-tab active" id="tabOverviewBtn" data-i18n="tabOverview">Overview</button>
+    <button type="button" class="page-tab" id="tabTrendsBtn" data-i18n="tabTrends">Trends</button>
+    <button type="button" class="page-tab" id="tabDocsBtn" data-i18n="tabDocs">Documentation</button>
+  </nav>
+
+  <div id="pageOverview" class="page flow">
+    <section class="step-card" id="authSection">
+      <div class="step-head"><span class="step-num">1</span><h2 data-i18n="stepSignInTitle">Sign in</h2></div>
+      <button class="google-btn" id="googleSignInBtn" disabled>
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+          <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"/>
+          <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"/>
+          <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z"/>
+        </svg>
+        <span id="googleSignInBtnLabel">Sign in with Google</span>
+      </button>
+      <div class="status-row"><span class="status-dot" id="authStatusDot"></span><p class="hint" id="authStatus" style="margin:0;" data-i18n="authLoading">Loading…</p></div>
+    </section>
+
+    <section class="step-card" id="profileGateSection" hidden>
+      <div class="step-head"><span class="step-num">2</span><h2 data-i18n="stepProfileTitle">Your profile</h2></div>
+      <div id="nicknameGatePicker">
+        <p class="hint" data-i18n="nicknameGateBody" style="margin:0 0 12px;">Pick a nickname — this is what the team will see instead of your Google account name.</p>
+        <div class="scorecard-select-row">
+          <input type="text" id="nicknameGateInput" class="save-input" style="flex:1;max-width:240px;" maxlength="40">
+          <button class="ghost" id="nicknameGateConfirmBtn" disabled data-i18n="nicknameGateConfirm">Confirm</button>
+        </div>
+        <p class="hint" id="nicknameGateStatus" style="margin-top:10px;"></p>
+      </div>
+      <div id="teamGatePicker" hidden>
+        <p class="hint" data-i18n="teamGateBody" style="margin:0 0 12px;">Choose the team you belong to. An admin can change this later if needed.</p>
+        <div class="scorecard-select-row">
+          <select id="teamGateSelect">
+            <option value="" data-i18n="teamGatePlaceholder">Choose a team…</option>
+          </select>
+          <button class="ghost" id="teamGateConfirmBtn" disabled data-i18n="teamGateConfirm">Confirm</button>
+        </div>
+        <p class="hint" id="teamGateStatus" style="margin-top:10px;"></p>
+      </div>
+      <div id="profileResolved" hidden></div>
+    </section>
+
+    <section class="step-card" id="uploadSection" hidden>
+      <div class="step-head"><span class="step-num">3</span><h2 data-i18n="stepContributeTitle">Contribute</h2></div>
+      <label class="dropzone" id="uploadDz" for="uploadFile">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <span data-i18n="uploadDzLabel">Drop the JSON file exported from your local tool here, or click to choose it</span>
+      </label>
+      <input type="file" id="uploadFile" accept=".json,application/json">
+      <p class="hint" id="uploadStatus"></p>
+    </section>
+
+    <div class="panel" id="adminScopeBar" hidden>
+      <div class="panel-head">
+        <div class="filters">
+          <label for="adminTeamScope" style="font-size:.82rem;color:var(--ink-2);" data-i18n="adminScopeLabel">Team view</label>
+          <select id="adminTeamScope">
+            <option value="" data-i18n="adminScopeAll">All teams (global)</option>
+          </select>
+        </div>
+        <span class="count-note hint" style="margin:0;" data-i18n="adminScopeHint">Admin only — everyone else only sees their own team's data.</span>
+      </div>
+    </div>
+
+    <section class="step-card" id="collectiveSection" hidden>
+      <div class="step-head"><span class="step-num">4</span><h2 data-i18n="stepSharedViewTitle">Shared view</h2></div>
+      <div id="collectiveSummary">
+        <div class="empty-state">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          <span class="hint" data-i18n="authLoading" style="margin:0;">Loading…</span>
+        </div>
+      </div>
+      <button class="ghost" id="refreshBtn" style="margin-top:16px;" data-i18n="refreshBtn">Refresh</button>
+    </section>
+
+    <section class="step-card" id="manageTeamsSection" hidden>
+      <div class="step-head"><h2 data-i18n="manageTeamsTitle">Manage teams (admin)</h2></div>
+      <p class="hint" data-i18n="manageTeamsListSubtitle" style="margin:0 0 10px;">Teams</p>
+      <div id="manageTeamsListBody"></div>
+      <div class="scorecard-select-row" style="margin-top:12px;">
+        <input type="text" id="newTeamNameInput" class="save-input" style="flex:1;max-width:220px;">
+        <button class="ghost btn-small" id="addTeamBtn" data-i18n="addTeamBtn">Add team</button>
+      </div>
+      <p class="hint" data-i18n="manageTeamsMembersSubtitle" style="margin:22px 0 2px;">Members</p>
+      <div id="manageTeamsBody"></div>
+    </section>
+  </div>
+
+  <div id="pageTrends" class="page flow" hidden>
+    <section class="panel">
+      <div id="trendsEmpty" class="charts-grid" style="grid-template-columns:1fr;">
+        <div class="empty-state">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6 4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6l-1.5-6a2 2 0 0 0-2-1.5h-9a2 2 0 0 0-2 1.5Z"/></svg>
+          <span class="hint" data-i18n="trendsEmptyState" style="margin:0;">Sign in and import at least one contribution to see the team's trends.</span>
+        </div>
+      </div>
+      <div id="trendsBody" hidden>
+        <div class="panel-head" style="flex-direction:column;align-items:stretch;">
+          <div class="filters">
+            <label for="trendsChannelFilter" style="font-size:.82rem;color:var(--ink-2);" data-i18n="channelLabel">Campaign type</label>
+            <select id="trendsChannelFilter">
+              <option value="" data-i18n="channelAll">All campaigns</option>
+              <option value="appel" data-i18n="channelCalls">Calls</option>
+              <option value="email" data-i18n="channelEmail">Email</option>
+              <option value="sms" data-i18n="channelSms">SMS</option>
+            </select>
+            <label for="trendsContributorFilter" style="font-size:.82rem;color:var(--ink-2);" data-i18n="contributorFilterLabel">Contributor</label>
+            <select id="trendsContributorFilter">
+              <option value="" data-i18n="contributorFilterAll">All contributors</option>
+            </select>
+            <span class="count-note hint" style="margin:0;" data-i18n="channelHint">Detected from the campaign name (contains “Call”, “Email” or “SMS”).</span>
+          </div>
+          <div class="filters" style="margin-top:12px;align-items:flex-start;">
+            <span style="font-size:.82rem;color:var(--ink-2);padding-top:7px;" data-i18n="entryFilterLabel">Entry</span>
+            <div class="entry-filter-list" id="trendsEntryFilterList"></div>
+            <span class="count-note hint" style="margin:0;max-width:28ch;" data-i18n="entryFilterHelp">None checked shows all entries.</span>
+          </div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <p class="chart-title" data-i18n="dailyChartTitle">Daily scan rate</p>
+            <div class="chart-wrap" id="dailyChartWrap">
+              <div id="dailyChart"></div>
+              <div class="chart-tooltip" id="dailyTooltip"></div>
+            </div>
+            <p class="hint legend-dynamic" id="dailyChartExample"></p>
+          </div>
+          <div class="chart-card">
+            <p class="chart-title" data-i18n="commitmentChartTitle">Scan rate by commitment level (team total)</p>
+            <div id="commitmentBreakdown"></div>
+          </div>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <p class="chart-title" data-i18n="scorecardTitle">Doctor scorecard</p>
+            <div class="scorecard-select-row">
+              <select id="doctorScorecardSelect"></select>
+            </div>
+            <div id="doctorScorecard"></div>
+          </div>
+          <div class="chart-card">
+            <p class="chart-title" data-i18n="leaderboardTitle">Top doctors — Scan rookie/NSPTM (team total)</p>
+            <div class="table-scroll leaderboard-scroll">
+              <div id="doctorLeaderboard"></div>
+            </div>
+          </div>
+        </div>
+        <div class="charts-grid" style="grid-template-columns:1fr;">
+          <div class="chart-card">
+            <p class="chart-title" data-i18n="aircallTitle">Aircall calls — Voicemail drop &amp; scans</p>
+            <div id="aircallBreakdown"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="pageDocs" class="page flow" hidden>
+    <section class="panel">
+      <div class="charts-grid">
+        <div class="chart-card">
+          <p class="chart-title" data-i18n="docsWhatTitle">What this tool is for</p>
+          <p class="hint" data-i18n="docsWhatBody" style="margin:0;">Suivi Relance Scan — Collab brings together the JSON exports from everyone's individual tool into one shared view, so the whole team can see combined follow-up and scan stats without a shared file or a server.</p>
+        </div>
+        <div class="chart-card">
+          <p class="chart-title" data-i18n="docsPrivacyTitle">Privacy</p>
+          <p class="hint" data-i18n="docsPrivacyBody" style="margin:0;">Everything you upload goes straight from your browser to the shared Google Drive folder, using your own Google account. This page has no server and no database of its own — it only reads and writes files in that Drive folder, with your account's own permissions.</p>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <p class="chart-title" data-i18n="docsHowTitle">How it works</p>
+          <ol class="hint" style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;">
+            <li data-i18n="docsHow1">Sign in with your Google account (step 1).</li>
+            <li data-i18n="docsHow2">In your individual desktop tool, export your history as JSON, then drop that file here to contribute it (step 2).</li>
+            <li data-i18n="docsHow3">The Overview tab (step 3) shows combined totals and a breakdown per contributor, plus the list of imported files.</li>
+            <li data-i18n="docsHow4">The Trends tab turns the combined data into the same analysis as the individual tool: daily scan rate, breakdown by commitment level, doctor scorecard, Scan rookie/NSPTM leaderboard, and Aircall call outcomes — all computed across the whole team, with an optional filter by campaign type (Calls/Email/SMS).</li>
+            <li data-i18n="docsHow5">A file can only be imported once — uploading the same export again is blocked automatically to avoid duplicates.</li>
+            <li data-i18n="docsHow6">Everyone can delete their own imports; the tool administrator can delete any import.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <p class="chart-title" data-i18n="docsChangelogTitle">Update history (changelog)</p>
+          <div class="table-scroll changelog-scroll">
+            <ul class="changelog-list" id="collabChangelogList"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer onload="initGoogle()"></script>
+<script>
+(function(){
+  // === Configuration ===
+  const GOOGLE_CLIENT_ID = '464525857093-e07onmr6jdbpoh6t3t1387nmlsr1fhk0.apps.googleusercontent.com';
+  const DRIVE_FOLDER_ID = '1z_wEPjSz7YWrHmG-VKVM6zw-2_iEmCKS';
+  const ADMIN_EMAILS = ['m.herberger@dental-monitoring.com'];
+  const DEFAULT_TEAMS = ['Dach', 'Frabel', 'CEE', 'NAM', 'UKI'];
+  const TEAM_DIRECTORY_FILENAME = '_team-directory.json';
+  // ======================
+
+  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email';
+
+  // Changelog shown in the Documentation tab — most recent first. Each entry has a French and an
+  // English description since this is a single bilingual file (unlike the individual tool, which
+  // ships as two separate versioned files with their own changelog per language).
+  const COLLAB_CHANGELOG = [
+    { date: '2026-09-24', fr: "Ajout d'un bouton « Télécharger » à côté de « Supprimer » sur chaque fichier importé, pour récupérer l'export JSON original de n'importe quel contributeur.", en: 'Added a "Download" button next to "Delete" on every imported file, to retrieve the original JSON export from any contributor.' },
+    { date: '2026-09-23', fr: "Correction : la tuile « Patients réellement contactés » (et le tableau par CX) comptait chaque ligne importée, sans tenir compte de l'ajustement manuel « Patients réellement contactés » fait dans l'outil individuel. Elle reflète désormais ce nombre ajusté, cohérent avec le taux de scan affiché.", en: 'Fix: the "Patients actually contacted" tile (and the per-CX table) counted every imported row, ignoring the manual "Patients actually contacted" adjustment made in the individual tool. It now reflects that adjusted number, consistent with the displayed scan rate.' },
+    { date: '2026-09-22', fr: "Ajout d'un rôle « Admin » modifiable par membre (colonne Rôle, à côté de l'équipe) : l'admin fixe peut promouvoir n'importe quel membre en admin depuis « Gérer les équipes », sans toucher au code.", en: 'Added a per-member "Admin" role (a Role column next to Team): the fixed admin can promote any member to admin from "Manage teams", with no code changes needed.' },
+    { date: '2026-09-22', fr: "Correction d'un bug critique : le fichier interne « _team-directory.json » (équipes, surnoms, affectations) apparaissait dans la liste « Fichiers importés » comme un import illisible, avec un bouton Supprimer visible pour l'admin — un clic dessus l'effaçait définitivement. Il est désormais exclu de cette liste, et la suppression d'un import déplace maintenant le fichier vers la corbeille Drive (récupérable) au lieu de le supprimer définitivement.", en: 'Fixed a critical bug: the internal "_team-directory.json" file (teams, nicknames, assignments) was showing up in the "Imported files" list as an unreadable import, with a Delete button visible to the admin — clicking it permanently erased it. It is now excluded from that list, and deleting an import now moves the file to the Drive trash (recoverable) instead of permanently deleting it.' },
+    { date: '2026-09-22', fr: "Ajout d'un changelog complet dans l'onglet Documentation, listant l'historique des évolutions de l'outil collab.", en: "Added a full changelog to the Documentation tab, listing the collab tool's history of changes." },
+    { date: '2026-09-21', fr: "Fusion des étapes « Ton surnom » et « Ton équipe » de l'inscription en une seule carte, avec une ligne de statut compacte une fois les deux résolus et des liens « Changer » indépendants pour chacun.", en: 'Merged the "Your nickname" and "Your team" onboarding steps into a single card, with one compact status line once both are resolved and independent "Change" links for each.' },
+    { date: '2026-09-21', fr: "L'affichage du nom (filtre CX, liste des entrées, tableau CX, fichiers importés) résout désormais en direct le surnom si un pseudo a été choisi, sinon l'email — au lieu d'un nom figé au moment de l'import.", en: 'The displayed name (CX filter, entry list, CX table, imported files) now resolves live to the nickname if one is set, otherwise the email — instead of a name frozen at import time.' },
+    { date: '2026-09-21', fr: "Ajout d'un « surnom » choisi au premier lancement (à la place de l'email affiché) ; sélection multiple par Shift-clic dans la liste d'entrées à cocher.", en: 'Added a self-chosen "nickname" on first launch (instead of showing the email); Shift-click range-select in the checkbox entry list.' },
+    { date: '2026-09-21', fr: "Refonte du filtre d'entrées : remplacement du menu déroulant multi-sélection natif (peu esthétique) par une liste de cases à cocher stylées, cohérente avec le thème sombre de l'outil.", en: "Redesigned the entry filter: replaced the native multi-select dropdown with a styled checkbox list matching the tool's dark theme." },
+    { date: '2026-09-21', fr: "Renommage de « Contributeur » en « CX » (intitulé du poste de l'équipe) dans toute l'interface.", en: 'Renamed "Contributor" to "CX" (the team\'s job title) throughout the interface.' },
+    { date: '2026-09-21', fr: "Ajout du filtre par CX et de la sélection multiple dans le filtre par entrée (une ou plusieurs entrées affichées à la fois, toutes par défaut).", en: 'Added a CX filter and multi-select in the entry filter (show one or more entries at once, all by default).' },
+    { date: '2026-09-21', fr: "Appels Aircall : les résultats figés (« Figer à cette entrée » dans l'outil individuel) s'affichent désormais automatiquement dès l'import, sans upload CSV/Excel séparé dans l'outil collab.", en: 'Aircall: pinned results ("Pin to this entry" in the individual tool) now show automatically on import, with no separate CSV/Excel upload needed in the collab tool.' },
+    { date: '2026-09-21', fr: "Gestion des équipes directement depuis l'interface (admin) : ajout/suppression d'équipes sans intervention technique, avec réaffectation automatique des membres de l'équipe supprimée.", en: "Team management directly from the UI (admin): add/remove teams with no technical intervention, with automatic reassignment of the removed team's members." },
+    { date: '2026-09-21', fr: "Système d'équipes : chaque personne choisit son équipe au premier accès (modifiable ensuite), les données sont filtrées par équipe, et l'administrateur dispose d'une vue par équipe et/ou globale.", en: "Team system: everyone picks their team on first access (changeable later), data is scoped by team, and the admin gets a per-team and/or global view." },
+    { date: '2026-09-21', fr: "Ajout de la partie Appels Aircall (qui manquait) et d'un onglet « Documentation » propre à l'outil collab.", en: 'Added the missing Aircall section, and a dedicated "Documentation" tab for the collab tool.' },
+    { date: '2026-09-21', fr: "Ajout de l'onglet « Tendances » (même analyse que l'outil individuel : taux de scan, commitment level, fiche docteur, leaderboard) et d'une traduction anglais/français (anglais par défaut).", en: 'Added the "Trends" tab (same analysis as the individual tool: scan rate, commitment level, doctor scorecard, leaderboard) and an English/French translation (English by default).' },
+    { date: '2026-09-21', fr: "Ajout de la suppression des imports (les siens, ou n'importe lequel pour l'admin) et blocage automatique en cas de réimport du même fichier.", en: 'Added the ability to delete imports (your own, or any for the admin) and automatic blocking of re-importing the same file.' },
+    { date: '2026-09-21', fr: "Mise en place de la connexion Google (OAuth) et du stockage partagé sur Google Drive : chaque import va directement du navigateur de l'utilisateur vers le dossier Drive commun de l'équipe, sans serveur.", en: "Set up Google sign-in (OAuth) and shared Google Drive storage: each import goes straight from the user's browser to the team's shared Drive folder, with no server." },
+    { date: '2026-09-21', fr: "Choix de Netlify pour héberger l'outil (gratuit, sans date d'expiration, accessible avec un compte Google) et mise en ligne.", en: 'Chose Netlify to host the tool (free, no expiration date, accessible with a Google account) and deployed it.' },
+    { date: '2026-09-21', fr: "Lancement du projet d'outil collab : décision de l'architecture (un outil alimenté par Google Drive, sans backend, pour synchroniser les stats individuelles vers une vue d'équipe partagée).", en: 'Kicked off the collab tool project: decided the architecture (a Drive-backed tool with no server, to sync individual stats into one shared team view).' },
+  ];
+
+  function renderCollabChangelog(){
+    const list = document.getElementById('collabChangelogList');
+    if(!list) return;
+    list.innerHTML = COLLAB_CHANGELOG.map(e=> `<li><span class="changelog-date">${escapeHtml(e.date)}</span><span class="changelog-desc">${escapeHtml(currentLang === 'fr' ? e.fr : e.en)}</span></li>`).join('');
+  }
+
+  // === i18n — English is the default language; French is a toggle. ===
+  const LANG_STORAGE_KEY = 'src_collab_lang_v1';
+  const I18N = {
+    en: {
+      pageTitle: 'Suivi Relance Scan — Collab',
+      eyebrow: 'Follow-up → scan · collab',
+      title: 'Suivi Relance Scan — Shared view',
+      subtitle: "Drop the JSON exports from your local tool to share them with the team, and see everyone's combined stats at a glance.",
+      privacy: 'Data you send here goes directly from your browser to the shared Google Drive folder, using your own account — this page itself stores nothing and never sees your data.',
+      tabOverview: 'Overview',
+      tabTrends: 'Trends',
+      tabDocs: 'Documentation',
+      stepSignInTitle: 'Sign in',
+      stepProfileTitle: 'Your profile',
+      stepContributeTitle: 'Contribute',
+      stepSharedViewTitle: 'Shared view',
+      nicknameGateBody: 'Pick a nickname — this is what the team will see instead of your Google account name.',
+      nicknameGatePlaceholder: 'Your nickname…',
+      nicknameGateConfirm: 'Confirm',
+      nicknameGateLoading: 'Loading…',
+      nicknameGateSaving: 'Saving…',
+      nicknameGateSaveError: 'Could not save your nickname — check your connection and try again.',
+      nicknameGateResolvedText: 'Your nickname: {nickname}.',
+      teamGateBody: 'Choose the team you belong to. An admin can change this later if needed.',
+      teamGatePlaceholder: 'Choose a team…',
+      teamGateConfirm: 'Confirm',
+      teamGateLoading: 'Loading…',
+      teamGateSaving: 'Saving…',
+      teamGateSaveError: 'Could not save your team — check your connection and try again.',
+      teamGateResolvedText: 'Your team: {team}.',
+      teamGateChangeLink: 'Change',
+      adminScopeLabel: 'Team view',
+      adminScopeAll: 'All teams (global)',
+      adminScopeUnassigned: 'Unassigned',
+      adminScopeHint: "Admin only — everyone else only sees their own team's data.",
+      manageTeamsTitle: 'Manage teams (admin)',
+      manageTeamsListSubtitle: 'Teams',
+      manageTeamsMembersSubtitle: 'Members',
+      manageTeamsEmpty: 'No team members yet.',
+      manageTeamsUnassigned: 'Unassigned',
+      thName: 'Name',
+      thEmail: 'Email',
+      thTeam: 'Team',
+      thRole: 'Role',
+      roleAdmin: 'Admin',
+      roleMember: 'Member',
+      roleFixedAdminHint: 'Fixed admin — set in the tool\'s code, cannot be changed here.',
+      toastTeamUpdated: 'Team updated ✓',
+      toastTeamUpdateFailed: 'Could not update team — check your connection.',
+      toastRoleUpdated: 'Role updated ✓',
+      toastRoleUpdateFailed: 'Could not update role — check your connection.',
+      addTeamBtn: 'Add team',
+      newTeamNamePlaceholder: 'New team name…',
+      removeTeamBtn: 'Remove team',
+      noTeamsYet: 'No teams yet — add one below.',
+      confirmRemoveTeam: 'Remove the team "{team}"? This cannot be undone.',
+      confirmRemoveTeamWithMembers: '"{team}" still has {count} member(s) — they will become Unassigned. Remove it anyway?',
+      toastTeamAdded: 'Team added ✓',
+      toastTeamRemoved: 'Team removed ✓',
+      toastTeamActionFailed: 'Could not update the team list — check your connection.',
+      googleBtnDefault: 'Sign in with Google',
+      googleBtnReconnect: 'Reconnect',
+      uploadDzLabel: 'Drop the JSON file exported from your local tool here, or click to choose it',
+      refreshBtn: 'Refresh',
+      authLoading: 'Loading…',
+      authReady: 'Ready — sign in to contribute or view team stats.',
+      authConnected: 'Signed in as {name} ({email})',
+      authDenied: 'Sign-in was refused or cancelled.',
+      authExpired: 'Your session expired — click "Sign in with Google" again to continue (it only takes a few seconds).',
+      authMisconfigured: 'Google configuration missing — the Client ID and Drive folder ID need to be set in the code by the admin.',
+      uploadReadError: "Couldn't read this file.",
+      uploadInvalidJson: 'Invalid JSON file.',
+      uploadNoEntries: 'No history entries found in this file.',
+      uploadChecking: 'Checking (already imported?)…',
+      uploadDuplicate: 'This file was already imported — all its entries are already in the shared pool. Upload cancelled.',
+      uploadSending: 'Uploading…',
+      uploadFailedCode: 'Upload to Drive failed (code {code}).',
+      uploadSuccess: 'Uploaded ✓ ({count} entries shared)',
+      uploadNetworkFail: 'Upload failed — check your connection.',
+      summaryLoadError: "Couldn't load the shared folder.",
+      summaryEmpty: 'No contributions yet — be the first to send one.',
+      tileVerifications: 'Verifications',
+      tileVerificationsSub: 'combined contributions',
+      tilePatients: 'Patients actually contacted',
+      tilePatientsSub: 'across all CX',
+      tileScanRate: 'Scan rate',
+      tileScanRateSub: '{scanned}/{total} scanned',
+      thContributor: 'CX',
+      thPatients: 'Patients',
+      thScanned: 'Scanned',
+      thRate: 'Rate',
+      filesImportedTitle: 'Imported files',
+      thDate: 'Date',
+      thEntries: 'Entries',
+      unreadable: 'unreadable',
+      entriesCount: '{count} entries',
+      deleteBtn: 'Delete',
+      confirmDelete: 'Permanently delete this import? This action cannot be undone.',
+      deleteFailedCode: 'Delete failed (code {code}).',
+      deleteFailedNetwork: 'Delete failed — check your connection.',
+      downloadBtn: 'Download',
+      downloadFailedCode: 'Download failed (code {code}).',
+      downloadFailedNetwork: 'Download failed — check your connection.',
+      channelLabel: 'Campaign type',
+      channelHint: 'Detected from the campaign name (contains "Call", "Email" or "SMS").',
+      channelAll: 'All campaigns',
+      channelCalls: 'Calls',
+      channelEmail: 'Email',
+      channelSms: 'SMS',
+      dailyChartTitle: 'Daily scan rate',
+      dailyChartLastPoint: 'Latest point: {label} → {value}% conversion.',
+      noDataYet: 'No data yet',
+      chartAriaLabel: 'Trend chart',
+      commitmentChartTitle: 'Scan rate by commitment level (team total)',
+      commitmentEmpty: 'Not enough shared data yet for this analysis.',
+      scorecardTitle: 'Doctor scorecard',
+      scorecardPlaceholder: 'Choose a doctor…',
+      scorecardChoose: 'Choose a doctor to generate their scorecard.',
+      scorecardVolume: 'Volume',
+      scorecardVolumeSub: 'patients tracked (team total)',
+      scorecardRate: 'Scan rate',
+      scorecardNoTrend: 'Not enough verifications yet to show a trend.',
+      scorecardVolumeLine: 'Volume: {total} patients tracked (team total)',
+      scorecardRateLine: 'Overall scan rate: {pct}% ({scanned}/{total})',
+      scorecardDoctorTitle: 'Doctor scorecard — {doctor}',
+      scorecardGeneratedOn: 'Generated on {date}',
+      scorecardDetailLine: 'Detail by verification:',
+      trendStable: 'Stable since the last verification ({pct}%).',
+      trendDelta: '{sign}{delta} pts since the last verification ({prevPct}% → {lastPct}%).',
+      copyBtn: 'Copy',
+      downloadBtn: 'Download',
+      patientListBtn: 'Patient list',
+      leaderboardTitle: 'Top doctors — Scan rookie/NSPTM (team total)',
+      leaderboardEmpty: "No doctor has {min}+ patients in the shared data yet — not enough volume for a meaningful ranking.",
+      thDoctor: 'Doctor',
+      thRisky: 'Scan rookie/NSPTM',
+      thRiskyScanned: 'Of which scanned',
+      trendsEmptyState: "Sign in and import at least one contribution to see the team's trends.",
+      toastCopied: 'Scorecard copied ✓',
+      toastNoPatients: 'No patients to export for this doctor',
+      statusScanned: 'Scanned',
+      statusNotScanned: 'Not scanned',
+      aircallTitle: 'Aircall calls — Voicemail drop & scans',
+      aircallNoFrozenData: 'None of the entries currently shown have frozen Aircall data yet. In the individual tool, use "Freeze to this entry" on a history entry, then re-export and re-import it here.',
+      aircallFrozenSummary: '{withCount} / {totalCount} shown entries have frozen Aircall data ({matched} / {totalCalls} calls matched).',
+      contributorFilterLabel: 'CX',
+      contributorFilterAll: 'All CX',
+      entryFilterLabel: 'Entry',
+      entryFilterHelp: 'None checked shows all entries.',
+      entryFilterEmpty: 'No entries match the current filters.',
+      thCategory: 'Category',
+      thVolume: 'Volume',
+      thScannedAfter: 'Scanned after',
+      aircallBucketVoicemail: 'Voicemail',
+      aircallBucketAnswered: 'Call answered',
+      aircallBucketNotAnswered: 'Call not answered',
+      docsWhatTitle: 'What this tool is for',
+      docsWhatBody: "Suivi Relance Scan — Collab brings together the JSON exports from everyone's individual tool into one shared view, so the whole team can see combined follow-up and scan stats without a shared file or a server.",
+      docsPrivacyTitle: 'Privacy',
+      docsPrivacyBody: "Everything you upload goes straight from your browser to the shared Google Drive folder, using your own Google account. This page has no server and no database of its own — it only reads and writes files in that Drive folder, with your account's own permissions.",
+      docsHowTitle: 'How it works',
+      docsHow1: 'Sign in with your Google account (step 1).',
+      docsHow2: 'In your individual desktop tool, export your history as JSON, then drop that file here to contribute it (step 2).',
+      docsHow3: 'The Overview tab (step 3) shows combined totals and a breakdown per CX, plus the list of imported files.',
+      docsHow4: 'The Trends tab turns the combined data into the same analysis as the individual tool: daily scan rate, breakdown by commitment level, doctor scorecard, Scan rookie/NSPTM leaderboard, and Aircall call outcomes — all computed across the whole team, with an optional filter by campaign type (Calls/Email/SMS).',
+      docsHow5: 'A file can only be imported once — uploading the same export again is blocked automatically to avoid duplicates.',
+      docsHow6: 'Everyone can delete their own imports; the tool administrator can delete any import.',
+      docsChangelogTitle: 'Update history (changelog)',
+    },
+    fr: {
+      pageTitle: 'Suivi Relance Scan — Collab',
+      eyebrow: 'Relance → scan · collab',
+      title: 'Suivi Relance Scan — Vue collective',
+      subtitle: "Dépose les exports JSON de ton outil local pour les partager avec l'équipe, et consulte les statistiques combinées de tout le monde en un coup d'œil.",
+      privacy: "Les données envoyées ici vont directement de ton navigateur vers le dossier Google Drive partagé, avec ton propre compte — cette page elle-même ne stocke rien et ne voit jamais tes données.",
+      tabOverview: "Vue d'ensemble",
+      tabTrends: 'Tendances',
+      tabDocs: 'Documentation',
+      stepSignInTitle: 'Connexion',
+      stepProfileTitle: 'Ton profil',
+      stepContributeTitle: 'Contribuer',
+      stepSharedViewTitle: 'Vue collective',
+      nicknameGateBody: "Choisis un surnom — c'est ce que l'équipe verra à la place de ton nom de compte Google.",
+      nicknameGatePlaceholder: 'Ton surnom…',
+      nicknameGateConfirm: 'Confirmer',
+      nicknameGateLoading: 'Chargement…',
+      nicknameGateSaving: 'Enregistrement…',
+      nicknameGateSaveError: "Impossible d'enregistrer ton surnom — vérifie ta connexion et réessaie.",
+      nicknameGateResolvedText: 'Ton surnom : {nickname}.',
+      teamGateBody: "Choisis l'équipe à laquelle tu appartiens. Un admin pourra modifier ça plus tard si besoin.",
+      teamGatePlaceholder: 'Choisir une équipe…',
+      teamGateConfirm: 'Confirmer',
+      teamGateLoading: 'Chargement…',
+      teamGateSaving: 'Enregistrement…',
+      teamGateSaveError: "Impossible d'enregistrer ton équipe — vérifie ta connexion et réessaie.",
+      teamGateResolvedText: 'Ton équipe : {team}.',
+      teamGateChangeLink: 'Changer',
+      adminScopeLabel: 'Vue par équipe',
+      adminScopeAll: 'Toutes les équipes (global)',
+      adminScopeUnassigned: 'Non assignés',
+      adminScopeHint: "Réservé à l'admin — tout le monde d'autre ne voit que les données de sa propre équipe.",
+      manageTeamsTitle: "Gérer les équipes (admin)",
+      manageTeamsListSubtitle: 'Équipes',
+      manageTeamsMembersSubtitle: 'Membres',
+      manageTeamsEmpty: "Aucun membre pour l'instant.",
+      manageTeamsUnassigned: 'Non assigné',
+      thName: 'Nom',
+      thEmail: 'Email',
+      thTeam: 'Équipe',
+      thRole: 'Rôle',
+      roleAdmin: 'Admin',
+      roleMember: 'Membre',
+      roleFixedAdminHint: "Admin fixe — défini dans le code de l'outil, non modifiable ici.",
+      toastTeamUpdated: 'Équipe mise à jour ✓',
+      toastTeamUpdateFailed: "Impossible de mettre à jour l'équipe — vérifie ta connexion.",
+      toastRoleUpdated: 'Rôle mis à jour ✓',
+      toastRoleUpdateFailed: "Impossible de mettre à jour le rôle — vérifie ta connexion.",
+      addTeamBtn: 'Ajouter une équipe',
+      newTeamNamePlaceholder: 'Nom de la nouvelle équipe…',
+      removeTeamBtn: "Supprimer l'équipe",
+      noTeamsYet: "Aucune équipe pour l'instant — ajoutes-en une ci-dessous.",
+      confirmRemoveTeam: 'Supprimer l\'équipe « {team} » ? Cette action est irréversible.',
+      confirmRemoveTeamWithMembers: '« {team} » contient encore {count} membre(s) — ils deviendront Non assignés. Supprimer quand même ?',
+      toastTeamAdded: 'Équipe ajoutée ✓',
+      toastTeamRemoved: 'Équipe supprimée ✓',
+      toastTeamActionFailed: "Impossible de mettre à jour la liste des équipes — vérifie ta connexion.",
+      googleBtnDefault: 'Se connecter avec Google',
+      googleBtnReconnect: 'Reconnecter',
+      uploadDzLabel: "Dépose ici le fichier JSON exporté depuis ton outil local, ou clique pour le choisir",
+      refreshBtn: 'Actualiser',
+      authLoading: 'Chargement…',
+      authReady: "Prêt — connecte-toi pour contribuer ou consulter les statistiques d'équipe.",
+      authConnected: 'Connecté en tant que {name} ({email})',
+      authDenied: 'Connexion refusée ou annulée.',
+      authExpired: 'Ta session a expiré — reclique sur "Se connecter avec Google" pour continuer (ça ne prend que quelques secondes).',
+      authMisconfigured: "Configuration Google manquante — le Client ID et l'ID du dossier Drive doivent être renseignés dans le code par l'administrateur.",
+      uploadReadError: 'Impossible de lire ce fichier.',
+      uploadInvalidJson: 'Fichier JSON invalide.',
+      uploadNoEntries: "Aucune entrée d'historique trouvée dans ce fichier.",
+      uploadChecking: 'Vérification (déjà importé ?)…',
+      uploadDuplicate: 'Ce fichier a déjà été importé — toutes ses entrées sont déjà dans le pool partagé. Envoi annulé.',
+      uploadSending: 'Envoi en cours…',
+      uploadFailedCode: "Échec de l'envoi vers Drive (code {code}).",
+      uploadSuccess: 'Envoyé ✓ ({count} entrée(s) partagée(s))',
+      uploadNetworkFail: "Échec de l'envoi — vérifie ta connexion.",
+      summaryLoadError: 'Impossible de charger le dossier partagé.',
+      summaryEmpty: "Aucune contribution pour l'instant — sois le premier à en envoyer une.",
+      tileVerifications: 'Vérifications',
+      tileVerificationsSub: 'contributions cumulées',
+      tilePatients: 'Patients réellement contactés',
+      tilePatientsSub: 'tous CX confondus',
+      tileScanRate: 'Taux de scan',
+      tileScanRateSub: '{scanned}/{total} scannés',
+      thContributor: 'CX',
+      thPatients: 'Patients',
+      thScanned: 'Scannés',
+      thRate: 'Taux',
+      filesImportedTitle: 'Fichiers importés',
+      thDate: 'Date',
+      thEntries: 'Entrées',
+      unreadable: 'illisible',
+      entriesCount: '{count} entrée(s)',
+      deleteBtn: 'Supprimer',
+      confirmDelete: 'Supprimer définitivement cet import ? Cette action est irréversible.',
+      deleteFailedCode: 'Échec de la suppression (code {code}).',
+      deleteFailedNetwork: 'Échec de la suppression — vérifie ta connexion.',
+      downloadBtn: 'Télécharger',
+      downloadFailedCode: 'Échec du téléchargement (code {code}).',
+      downloadFailedNetwork: 'Échec du téléchargement — vérifie ta connexion.',
+      channelLabel: 'Type de campagne',
+      channelHint: 'Détecté depuis le nom de la campagne (contient « Appel », « Email » ou « SMS »).',
+      channelAll: 'Toutes les campagnes',
+      channelCalls: 'Appels',
+      channelEmail: 'Email',
+      channelSms: 'SMS',
+      dailyChartTitle: 'Taux de scan par jour',
+      dailyChartLastPoint: 'Dernier point : {label} → {value}% de conversion.',
+      noDataYet: 'Pas encore de données',
+      chartAriaLabel: "Graphique d'évolution",
+      commitmentChartTitle: "Taux de scan par commitment level (cumul de l'équipe)",
+      commitmentEmpty: 'Pas encore assez de données partagées pour cette analyse.',
+      scorecardTitle: 'Fiche docteur',
+      scorecardPlaceholder: 'Choisir un docteur…',
+      scorecardChoose: 'Choisissez un docteur pour générer sa fiche.',
+      scorecardVolume: 'Volume',
+      scorecardVolumeSub: "patients suivis (cumul équipe)",
+      scorecardRate: 'Taux de scan',
+      scorecardNoTrend: 'Pas assez de vérifications pour dégager une tendance.',
+      scorecardVolumeLine: 'Volume : {total} patients suivis (cumul équipe)',
+      scorecardRateLine: 'Taux de scan global : {pct}% ({scanned}/{total})',
+      scorecardDoctorTitle: 'Fiche docteur — {doctor}',
+      scorecardGeneratedOn: 'Généré le {date}',
+      scorecardDetailLine: 'Détail par vérification :',
+      trendStable: 'Stable depuis la dernière vérification ({pct}%).',
+      trendDelta: '{sign}{delta} pts depuis la dernière vérification ({prevPct}% → {lastPct}%).',
+      copyBtn: 'Copier',
+      downloadBtn: 'Télécharger',
+      patientListBtn: 'Liste des patients',
+      leaderboardTitle: "Top docteurs — Scan rookie/NSPTM (cumul de l'équipe)",
+      leaderboardEmpty: "Aucun docteur n'a encore {min} patients ou plus dans les données partagées — pas assez de volume pour un classement pertinent.",
+      thDoctor: 'Docteur',
+      thRisky: 'Scan rookie/NSPTM',
+      thRiskyScanned: 'Dont scannés',
+      trendsEmptyState: "Connecte-toi et importe au moins une contribution pour voir les tendances de l'équipe.",
+      toastCopied: 'Fiche copiée ✓',
+      toastNoPatients: 'Aucun patient à exporter pour ce docteur',
+      statusScanned: 'Scanné',
+      statusNotScanned: 'Non scanné',
+      aircallTitle: 'Appels Aircall — Voicemail drop & scans',
+      aircallNoFrozenData: "Aucune des entrées actuellement affichées n'a de résultat Aircall figé pour l'instant. Dans l'outil individuel, utilise « Figer à cette entrée » sur une entrée d'historique, puis réexporte et réimporte-la ici.",
+      aircallFrozenSummary: '{withCount} / {totalCount} entrées affichées ont un résultat Aircall figé ({matched} / {totalCalls} appels liés).',
+      contributorFilterLabel: 'CX',
+      contributorFilterAll: 'Tous les CX',
+      entryFilterLabel: 'Entrée',
+      entryFilterHelp: 'Aucune case cochée = toutes les entrées affichées.',
+      entryFilterEmpty: 'Aucune entrée ne correspond aux filtres actuels.',
+      thCategory: 'Catégorie',
+      thVolume: 'Volume',
+      thScannedAfter: 'Scanné après',
+      aircallBucketVoicemail: 'Messagerie',
+      aircallBucketAnswered: 'Appel décroché',
+      aircallBucketNotAnswered: 'Appel non décroché',
+      docsWhatTitle: 'À quoi sert cet outil ?',
+      docsWhatBody: "Suivi Relance Scan — Collab rassemble les exports JSON de l'outil individuel de chacun dans une seule vue partagée, pour que toute l'équipe voie les statistiques combinées de relance et de scan sans fichier partagé ni serveur.",
+      docsPrivacyTitle: 'Confidentialité',
+      docsPrivacyBody: "Tout ce que vous importez va directement de votre navigateur vers le dossier Google Drive partagé, avec votre propre compte Google. Cette page n'a ni serveur ni base de données à elle — elle ne fait que lire et écrire des fichiers dans ce dossier Drive, avec les permissions de votre propre compte.",
+      docsHowTitle: 'Comment ça marche',
+      docsHow1: 'Connectez-vous avec votre compte Google (étape 1).',
+      docsHow2: "Dans votre outil individuel de bureau, exportez votre historique en JSON, puis déposez ce fichier ici pour le partager (étape 2).",
+      docsHow3: "L'onglet Vue d'ensemble (étape 3) affiche les totaux combinés et une répartition par CX, ainsi que la liste des fichiers importés.",
+      docsHow4: "L'onglet Tendances reprend la même analyse que l'outil individuel sur les données combinées : taux de scan par jour, répartition par commitment level, fiche docteur, classement Scan rookie/NSPTM, et résultats des appels Aircall — le tout calculé sur toute l'équipe, avec un filtre optionnel par type de campagne (Appels/Email/SMS).",
+      docsHow5: "Un même fichier ne peut être importé qu'une seule fois — réimporter le même export est bloqué automatiquement pour éviter les doublons.",
+      docsHow6: "Chacun peut supprimer ses propres imports ; l'administrateur de l'outil peut supprimer n'importe quel import.",
+      docsChangelogTitle: 'Historique des mises à jour (changelog)',
+    },
+  };
+
+  function loadLang(){
+    try{ const v = localStorage.getItem(LANG_STORAGE_KEY); return (v === 'en' || v === 'fr') ? v : null; }catch(e){ return null; }
+  }
+  function saveLang(lang){
+    try{ localStorage.setItem(LANG_STORAGE_KEY, lang); }catch(e){}
+  }
+  let currentLang = loadLang() || 'en';
+
+  function i18n(key, params){
+    const dict = I18N[currentLang] || I18N.en;
+    let str = (dict && dict[key]) || I18N.en[key] || key;
+    if(params){
+      Object.keys(params).forEach(k=>{ str = str.split('{' + k + '}').join(params[k]); });
+    }
+    return str;
+  }
+
+  let accessToken = null;
+  let currentUser = null;
+  let tokenClient = null;
+  let collectiveData = null;
+  let rawCollectiveData = null;
+  let trendsChannel = '';
+  let trendsContributor = '';
+  let entryFilterAnchorIndex = null;
+  let trendsEntryFilter = [];
+  let teamDirectory = { fileId: null, teams: DEFAULT_TEAMS.slice(), members: {} };
+  let myNickname = null;
+  let myTeam = null;
+  let adminTeamScope = '';
+  let nicknameGateStatusState = null;
+  let teamGateStatusState = null;
+
+  function isAdmin(){
+    if(!currentUser) return false;
+    if(ADMIN_EMAILS.includes(currentUser.email)) return true;
+    const m = teamDirectory.members[currentUser.email];
+    return !!(m && m.role === 'admin');
+  }
+
+  const els = {
+    googleSignInBtn: document.getElementById('googleSignInBtn'),
+    googleSignInBtnLabel: document.getElementById('googleSignInBtnLabel'),
+    authStatus: document.getElementById('authStatus'),
+    authStatusDot: document.getElementById('authStatusDot'),
+    authSection: document.getElementById('authSection'),
+    uploadSection: document.getElementById('uploadSection'),
+    uploadDz: document.getElementById('uploadDz'),
+    uploadFile: document.getElementById('uploadFile'),
+    uploadStatus: document.getElementById('uploadStatus'),
+    collectiveSection: document.getElementById('collectiveSection'),
+    collectiveSummary: document.getElementById('collectiveSummary'),
+    refreshBtn: document.getElementById('refreshBtn'),
+    langBtnEn: document.getElementById('langBtnEn'),
+    langBtnFr: document.getElementById('langBtnFr'),
+    tabOverviewBtn: document.getElementById('tabOverviewBtn'),
+    tabTrendsBtn: document.getElementById('tabTrendsBtn'),
+    tabDocsBtn: document.getElementById('tabDocsBtn'),
+    pageOverview: document.getElementById('pageOverview'),
+    pageTrends: document.getElementById('pageTrends'),
+    pageDocs: document.getElementById('pageDocs'),
+    trendsEmpty: document.getElementById('trendsEmpty'),
+    trendsBody: document.getElementById('trendsBody'),
+    trendsChannelFilter: document.getElementById('trendsChannelFilter'),
+    trendsContributorFilter: document.getElementById('trendsContributorFilter'),
+    trendsEntryFilterList: document.getElementById('trendsEntryFilterList'),
+    dailyChartWrap: document.getElementById('dailyChartWrap'),
+    dailyChart: document.getElementById('dailyChart'),
+    dailyTooltip: document.getElementById('dailyTooltip'),
+    dailyChartExample: document.getElementById('dailyChartExample'),
+    commitmentBreakdown: document.getElementById('commitmentBreakdown'),
+    doctorScorecardSelect: document.getElementById('doctorScorecardSelect'),
+    doctorScorecard: document.getElementById('doctorScorecard'),
+    doctorLeaderboard: document.getElementById('doctorLeaderboard'),
+    aircallBreakdown: document.getElementById('aircallBreakdown'),
+    profileGateSection: document.getElementById('profileGateSection'),
+    profileResolved: document.getElementById('profileResolved'),
+    nicknameGatePicker: document.getElementById('nicknameGatePicker'),
+    nicknameGateInput: document.getElementById('nicknameGateInput'),
+    nicknameGateConfirmBtn: document.getElementById('nicknameGateConfirmBtn'),
+    nicknameGateStatus: document.getElementById('nicknameGateStatus'),
+    teamGatePicker: document.getElementById('teamGatePicker'),
+    teamGateSelect: document.getElementById('teamGateSelect'),
+    teamGateConfirmBtn: document.getElementById('teamGateConfirmBtn'),
+    teamGateStatus: document.getElementById('teamGateStatus'),
+    adminScopeBar: document.getElementById('adminScopeBar'),
+    adminTeamScope: document.getElementById('adminTeamScope'),
+    manageTeamsSection: document.getElementById('manageTeamsSection'),
+    manageTeamsListBody: document.getElementById('manageTeamsListBody'),
+    newTeamNameInput: document.getElementById('newTeamNameInput'),
+    addTeamBtn: document.getElementById('addTeamBtn'),
+    manageTeamsBody: document.getElementById('manageTeamsBody'),
+    toast: document.getElementById('toast'),
+  };
+
+  function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+  function isConfigured(){
+    return GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith('REMPLACER') && DRIVE_FOLDER_ID && !DRIVE_FOLDER_ID.startsWith('REMPLACER');
+  }
+
+  let toastTimer = null;
+  function showToast(msg){
+    els.toast.textContent = msg;
+    els.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> els.toast.classList.remove('show'), 2200);
+  }
+
+  // === Auth status — stored as {key, params, dot} so switching language re-renders it correctly. ===
+  let authStatusState = { key: 'authLoading', params: {}, dot: null };
+  function setAuthStatus(key, params, dotState){
+    authStatusState = { key, params: params || {}, dot: dotState || null };
+    renderAuthStatus();
+  }
+  function renderAuthStatus(){
+    els.authStatus.textContent = i18n(authStatusState.key, authStatusState.params);
+    els.authStatusDot.className = 'status-dot' + (authStatusState.dot ? ' ' + authStatusState.dot : '');
+  }
+
+  let googleBtnConnected = false;
+  function renderGoogleBtnLabel(){
+    els.googleSignInBtnLabel.textContent = i18n(googleBtnConnected ? 'googleBtnReconnect' : 'googleBtnDefault');
+  }
+
+  let uploadStatusState = null;
+  function showUploadStatus(key, params, isError){
+    uploadStatusState = { key, params: params || {}, isError };
+    renderUploadStatus();
+  }
+  function renderUploadStatus(){
+    if(!uploadStatusState){ els.uploadStatus.textContent = ''; return; }
+    els.uploadStatus.textContent = i18n(uploadStatusState.key, uploadStatusState.params);
+    els.uploadStatus.style.color = uploadStatusState.isError ? 'var(--bad)' : 'var(--good)';
+  }
+
+  // === Persistance de session : on garde le jeton (et sa date d'expiration réelle donnée par
+  // Google, ~1h) en local pour éviter de redemander une connexion à chaque simple rechargement
+  // de la page. Google ne permet pas de renouveler ce jeton silencieusement au-delà de sa durée
+  // de vie réelle — une fois expiré, il faut bien recliquer, mais plus jamais "pour rien".
+  const TOKEN_STORAGE_KEY = 'src_collab_session_v1';
+
+  function saveSession(token, expiresInSec, user){
+    try{
+      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+        token, user, expiresAt: Date.now() + (Number(expiresInSec)||3300) * 1000,
+      }));
+    }catch(e){ /* stockage indisponible — la session ne survivra juste pas au rechargement */ }
+  }
+
+  function loadValidSession(){
+    try{
+      const raw = localStorage.getItem(TOKEN_STORAGE_KEY);
+      if(!raw) return null;
+      const data = JSON.parse(raw);
+      if(!data || !data.token || !data.expiresAt || data.expiresAt <= Date.now()) return null;
+      return data;
+    }catch(e){ return null; }
+  }
+
+  function clearSession(){
+    try{ localStorage.removeItem(TOKEN_STORAGE_KEY); }catch(e){}
+  }
+
+  function enterConnectedState(){
+    setAuthStatus('authConnected', { name: currentUser.name, email: currentUser.email }, 'ok');
+    googleBtnConnected = true;
+    renderGoogleBtnLabel();
+    els.googleSignInBtn.disabled = false;
+    els.authSection.classList.add('done');
+    ensureOnboardingAndProceed();
+  }
+
+  function handleSessionExpired(){
+    accessToken = null;
+    currentUser = null;
+    clearSession();
+    els.authSection.classList.remove('done');
+    googleBtnConnected = false;
+    renderGoogleBtnLabel();
+    myNickname = null;
+    myTeam = null;
+    rawCollectiveData = null;
+    collectiveData = null;
+    els.profileGateSection.hidden = true;
+    els.uploadSection.hidden = true;
+    els.collectiveSection.hidden = true;
+    els.adminScopeBar.hidden = true;
+    els.manageTeamsSection.hidden = true;
+    setAuthStatus('authExpired', {}, 'err');
+  }
+
+  // Restauration immédiate si un jeton encore valide est déjà en mémoire locale — indépendant
+  // du chargement de la librairie Google, donc ça s'affiche sans délai au rechargement.
+  (function restoreSessionIfValid(){
+    const saved = loadValidSession();
+    if(!saved) return;
+    accessToken = saved.token;
+    currentUser = saved.user;
+    enterConnectedState();
+  })();
+
+  window.initGoogle = function initGoogle(){
+    if(!isConfigured()){
+      setAuthStatus('authMisconfigured', {}, 'err');
+      return;
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: DRIVE_SCOPE,
+      callback: onTokenReceived,
+    });
+    els.googleSignInBtn.disabled = false;
+    if(!accessToken){
+      setAuthStatus('authReady', {}, null);
+    }
+  };
+
+  async function onTokenReceived(response){
+    if(response.error){
+      setAuthStatus('authDenied', {}, 'err');
+      return;
+    }
+    accessToken = response.access_token;
+    try{
+      const userInfo = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: 'Bearer ' + accessToken }
+      }).then(r=>r.json());
+      currentUser = { email: userInfo.email || 'unknown', name: userInfo.name || userInfo.email || 'Unknown' };
+    }catch(e){
+      currentUser = { email: 'unknown', name: 'Unknown' };
+    }
+    saveSession(accessToken, response.expires_in, currentUser);
+    enterConnectedState();
+  }
+
+  els.googleSignInBtn.addEventListener('click', ()=>{
+    if(!tokenClient) return;
+    tokenClient.requestAccessToken();
+  });
+
+  // ============================= Teams =============================
+  // Team membership lives in a single shared JSON file in the Drive folder (the "team
+  // directory"), keyed by email. Contributions themselves aren't tagged with a team — the
+  // team for a given import is always looked up live from this directory by uploader email,
+  // so an admin reassigning someone's team immediately re-scopes all of that person's past
+  // and future imports too, without touching each file.
+  function teamOptionsHtml(selected){
+    return teamDirectory.teams.map(t=>`<option value="${escapeHtml(t)}" ${t===selected?'selected':''}>${escapeHtml(t)}</option>`).join('');
+  }
+
+  function teamForEmail(email){
+    const m = teamDirectory.members[email];
+    return (m && m.team) || null;
+  }
+
+  // The display name for a contributor is always looked up live from the team directory by
+  // email, the same way teamForEmail() is — so a nickname change retroactively relabels all of
+  // that person's past AND future imports, instead of imports being stuck with whatever name
+  // (possibly an email fallback, from before nicknames existed) was stored on them at upload time.
+  function displayNameForEmail(email, fallback){
+    const m = email ? teamDirectory.members[email] : null;
+    if(m && m.name && m.name.trim()) return m.name.trim();
+    return fallback || email || '?';
+  }
+
+  async function loadTeamDirectory(){
+    const listRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false+and+name='${TEAM_DIRECTORY_FILENAME}'&fields=files(id,name)`,
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if(listRes.status === 401) throw authExpiredError();
+    const listJson = await listRes.json();
+    const file = (listJson.files || [])[0];
+    if(!file) return { fileId: null, teams: DEFAULT_TEAMS.slice(), members: {} };
+    const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+      headers: { Authorization: 'Bearer ' + accessToken }
+    });
+    if(contentRes.status === 401) throw authExpiredError();
+    let content = {};
+    try{ content = await contentRes.json(); }catch(e){ content = {}; }
+    const teams = (content && Array.isArray(content.teams) && content.teams.length) ? content.teams : DEFAULT_TEAMS.slice();
+    return { fileId: file.id, teams, members: (content && content.members) || {} };
+  }
+
+  // Generic read-modify-write: mutateFn receives a mutable {teams, members} draft (freshly
+  // re-fetched right before writing, to shrink the window for clobbering a concurrent edit)
+  // and mutates it in place. Used for every team-directory change — self-assigning a team,
+  // an admin reassigning someone, or an admin adding/removing a team.
+  async function updateTeamDirectory(mutateFn){
+    const fresh = await loadTeamDirectory();
+    const draft = { teams: fresh.teams.slice(), members: Object.assign({}, fresh.members) };
+    mutateFn(draft);
+    const payload = JSON.stringify({ version: 2, updatedAt: new Date().toISOString(), teams: draft.teams, members: draft.members });
+    if(fresh.fileId){
+      const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fresh.fileId}?uploadType=media`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: payload,
+      });
+      if(res.status === 401) throw authExpiredError();
+      if(!res.ok) throw new Error('team-directory-update-failed');
+      teamDirectory = { fileId: fresh.fileId, teams: draft.teams, members: draft.members };
+    } else {
+      const metadata = { name: TEAM_DIRECTORY_FILENAME, parents: [DRIVE_FOLDER_ID] };
+      const boundary = '-------teamdir' + Date.now();
+      const body =
+        `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+        `--${boundary}\r\nContent-Type: application/json\r\n\r\n${payload}\r\n` +
+        `--${boundary}--`;
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body,
+      });
+      if(res.status === 401) throw authExpiredError();
+      if(!res.ok) throw new Error('team-directory-create-failed');
+      const created = await res.json();
+      teamDirectory = { fileId: created.id, teams: draft.teams, members: draft.members };
+    }
+    return teamDirectory;
+  }
+
+  // Nickname and team share one step-card (#profileGateSection): a picker sub-view per gate,
+  // plus one combined line once both are resolved — see showProfileResolved().
+  function showNicknameGateStatus(key, params){
+    nicknameGateStatusState = key ? { key, params: params || {} } : null;
+    renderNicknameGateStatus();
+  }
+  function renderNicknameGateStatus(){
+    els.nicknameGateStatus.textContent = nicknameGateStatusState ? i18n(nicknameGateStatusState.key, nicknameGateStatusState.params) : '';
+  }
+  function showTeamGateStatus(key, params){
+    teamGateStatusState = key ? { key, params: params || {} } : null;
+    renderTeamGateStatus();
+  }
+  function renderTeamGateStatus(){
+    els.teamGateStatus.textContent = teamGateStatusState ? i18n(teamGateStatusState.key, teamGateStatusState.params) : '';
+  }
+
+  function showNicknameGatePicker(){
+    els.profileGateSection.classList.remove('done');
+    els.nicknameGatePicker.hidden = false;
+    els.teamGatePicker.hidden = true;
+    els.profileResolved.hidden = true;
+    els.nicknameGateInput.placeholder = i18n('nicknameGatePlaceholder');
+    if(!els.nicknameGateInput.value) els.nicknameGateInput.value = myNickname || '';
+    els.nicknameGateConfirmBtn.disabled = !els.nicknameGateInput.value.trim();
+    showNicknameGateStatus(null);
+  }
+  function showTeamGatePicker(){
+    els.profileGateSection.classList.remove('done');
+    els.nicknameGatePicker.hidden = true;
+    els.teamGatePicker.hidden = false;
+    els.profileResolved.hidden = true;
+    els.teamGateSelect.innerHTML = `<option value="">${i18n('teamGatePlaceholder')}</option>` + teamOptionsHtml(myTeam);
+    els.teamGateSelect.value = myTeam || '';
+    els.teamGateConfirmBtn.disabled = !els.teamGateSelect.value;
+    showTeamGateStatus(null);
+  }
+  function showProfileResolved(){
+    els.profileGateSection.classList.add('done');
+    els.nicknameGatePicker.hidden = true;
+    els.teamGatePicker.hidden = true;
+    els.profileResolved.hidden = false;
+    els.profileResolved.innerHTML = `<p class="profile-resolved-row">
+      <span class="profile-item">${escapeHtml(i18n('nicknameGateResolvedText', { nickname: myNickname }))} <button class="link-btn" id="profileChangeNicknameBtn" type="button">${i18n('teamGateChangeLink')}</button></span>
+      <span class="profile-sep">·</span>
+      <span class="profile-item">${escapeHtml(i18n('teamGateResolvedText', { team: myTeam }))} <button class="link-btn" id="profileChangeTeamBtn" type="button">${i18n('teamGateChangeLink')}</button></span>
+    </p>`;
+    document.getElementById('profileChangeNicknameBtn').addEventListener('click', showNicknameGatePicker);
+    document.getElementById('profileChangeTeamBtn').addEventListener('click', showTeamGatePicker);
+  }
+  function renderProfileGateState(){
+    renderNicknameGateStatus();
+    renderTeamGateStatus();
+    if(myNickname && myTeam){
+      showProfileResolved();
+    } else if(!els.nicknameGatePicker.hidden){
+      els.nicknameGateInput.placeholder = i18n('nicknameGatePlaceholder');
+    } else if(!els.teamGatePicker.hidden){
+      const prevSelected = els.teamGateSelect.value;
+      els.teamGateSelect.innerHTML = `<option value="">${i18n('teamGatePlaceholder')}</option>` + teamOptionsHtml(prevSelected);
+      els.teamGateSelect.value = prevSelected;
+    }
+  }
+  els.nicknameGateInput.addEventListener('input', ()=>{
+    els.nicknameGateConfirmBtn.disabled = !els.nicknameGateInput.value.trim();
+  });
+  els.nicknameGateInput.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' && !els.nicknameGateConfirmBtn.disabled){ e.preventDefault(); els.nicknameGateConfirmBtn.click(); }
+  });
+  els.nicknameGateConfirmBtn.addEventListener('click', async ()=>{
+    const nickname = els.nicknameGateInput.value.trim();
+    if(!nickname) return;
+    els.nicknameGateConfirmBtn.disabled = true;
+    showNicknameGateStatus('nicknameGateSaving');
+    try{
+      await updateTeamDirectory(draft=>{
+        const prev = draft.members[currentUser.email] || {};
+        draft.members[currentUser.email] = Object.assign({}, prev, { name: nickname, updatedAt: new Date().toISOString() });
+      });
+      myNickname = nickname;
+      proceedToTeamGate();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      showNicknameGateStatus('nicknameGateSaveError');
+      els.nicknameGateConfirmBtn.disabled = false;
+    }
+  });
+
+  function populateAdminScopeSelect(){
+    const prev = els.adminTeamScope.value;
+    els.adminTeamScope.innerHTML =
+      `<option value="">${i18n('adminScopeAll')}</option>` +
+      teamDirectory.teams.map(t=>`<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('') +
+      `<option value="__unassigned__">${i18n('adminScopeUnassigned')}</option>`;
+    els.adminTeamScope.value = teamDirectory.teams.includes(prev) || prev === '__unassigned__' ? prev : '';
+    adminTeamScope = els.adminTeamScope.value;
+  }
+  els.adminTeamScope.addEventListener('change', ()=>{
+    adminTeamScope = els.adminTeamScope.value;
+    applyTeamScopeAndRender();
+  });
+
+  function effectiveTeamScope(){
+    return isAdmin() ? adminTeamScope : myTeam;
+  }
+
+  // The individual tool lets people manually override "patients actually contacted" (some
+  // imported rows may not have been real contact attempts) — entry.stats.calledTotal already
+  // holds that resolved number (falling back to the raw row count when no override was set).
+  // Collab must aggregate that same number, not entry.rows.length, or the "Patients" tile would
+  // count every imported row as a contact regardless of the override.
+  function entryCalledTotal(entry){
+    if(entry && entry.stats && typeof entry.stats.calledTotal === 'number') return entry.stats.calledTotal;
+    return (entry && entry.rows || []).length;
+  }
+
+  function scopeDataToTeam(data, scope){
+    if(!data) return { files: [], allEntries: [], seenIds: new Set(), byContributor: new Map() };
+    if(!scope) return data;
+    const matches = email=>{
+      const team = teamForEmail(email);
+      return scope === '__unassigned__' ? !team : team === scope;
+    };
+    const filteredEntries = data.allEntries.filter(e=> matches(e._uploaderEmail));
+    const filteredFiles = data.files.filter(f=> matches(f.uploaderEmail));
+    const byContributor = new Map();
+    filteredEntries.forEach(e=>{
+      const key = e._uploaderEmail || e._uploaderName;
+      if(!byContributor.has(key)) byContributor.set(key, {total:0, scanned:0, email:e._uploaderEmail, name:e._uploaderName});
+      const c = byContributor.get(key);
+      const rows = e.rows || [];
+      c.total += entryCalledTotal(e);
+      c.scanned += rows.filter(r=>r.scanned).length;
+    });
+    return { files: filteredFiles, allEntries: filteredEntries, seenIds: new Set(filteredEntries.map(e=>String(e.id))), byContributor };
+  }
+
+  function applyTeamScopeAndRender(){
+    collectiveData = scopeDataToTeam(rawCollectiveData, effectiveTeamScope());
+    if(rawCollectiveData && !collectiveData.files.length){
+      els.collectiveSummary.innerHTML = emptyState(ICON_TRAY, i18n('summaryEmpty'));
+    } else if(collectiveData.files.length){
+      renderCollectiveSummary(collectiveData);
+    }
+    renderTrends();
+  }
+
+  function renderTeamsListBody(){
+    const counts = {};
+    Object.values(teamDirectory.members).forEach(m=>{ if(m.team) counts[m.team] = (counts[m.team]||0) + 1; });
+    els.manageTeamsListBody.innerHTML = teamDirectory.teams.length
+      ? `<div class="team-chip-list">${teamDirectory.teams.map(t=>`
+          <span class="team-chip">${escapeHtml(t)} <span class="team-chip-count">${counts[t]||0}</span>
+            <button type="button" class="team-chip-remove" data-remove-team="${escapeHtml(t)}" title="${i18n('removeTeamBtn')}">&times;</button>
+          </span>`).join('')}</div>`
+      : `<p class="hint" style="margin:0;">${i18n('noTeamsYet')}</p>`;
+    els.manageTeamsListBody.querySelectorAll('[data-remove-team]').forEach(btn=>{
+      btn.addEventListener('click', ()=> removeTeam(btn.getAttribute('data-remove-team')));
+    });
+    els.newTeamNameInput.placeholder = i18n('newTeamNamePlaceholder');
+  }
+
+  async function addTeam(){
+    const raw = els.newTeamNameInput.value.trim();
+    if(!raw) return;
+    els.addTeamBtn.disabled = true;
+    try{
+      await updateTeamDirectory(draft=>{
+        if(!draft.teams.some(t=> t.toLowerCase() === raw.toLowerCase())) draft.teams.push(raw);
+      });
+      els.newTeamNameInput.value = '';
+      showToast(i18n('toastTeamAdded'));
+      populateAdminScopeSelect();
+      renderTeamsListBody();
+      renderManageTeamsPanel();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      showToast(i18n('toastTeamActionFailed'));
+    }
+    els.addTeamBtn.disabled = false;
+  }
+  els.addTeamBtn.addEventListener('click', addTeam);
+  els.newTeamNameInput.addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ e.preventDefault(); addTeam(); }
+  });
+
+  async function removeTeam(team){
+    const count = Object.values(teamDirectory.members).filter(m=> m.team === team).length;
+    const confirmMsg = count > 0
+      ? i18n('confirmRemoveTeamWithMembers', { team, count })
+      : i18n('confirmRemoveTeam', { team });
+    if(!confirm(confirmMsg)) return;
+    try{
+      await updateTeamDirectory(draft=>{
+        draft.teams = draft.teams.filter(t=> t !== team);
+        Object.keys(draft.members).forEach(email=>{
+          if(draft.members[email].team === team) draft.members[email] = Object.assign({}, draft.members[email], { team: '' });
+        });
+      });
+      if(adminTeamScope === team) adminTeamScope = '';
+      if(myTeam === team) myTeam = null;
+      showToast(i18n('toastTeamRemoved'));
+      populateAdminScopeSelect();
+      renderTeamsListBody();
+      renderManageTeamsPanel();
+      applyTeamScopeAndRender();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      showToast(i18n('toastTeamActionFailed'));
+    }
+  }
+
+  function renderManageTeamsPanel(){
+    if(!isAdmin()) return;
+    renderTeamsListBody();
+    const rows = new Map();
+    Object.keys(teamDirectory.members).forEach(email=>{
+      const m = teamDirectory.members[email];
+      rows.set(email, { name: m.name || email, team: m.team || '', role: m.role || '' });
+    });
+    (rawCollectiveData ? rawCollectiveData.files : []).forEach(f=>{
+      if(!f.uploaderEmail || rows.has(f.uploaderEmail)) return;
+      rows.set(f.uploaderEmail, { name: f.uploaderName || f.uploaderEmail, team: '', role: '' });
+    });
+    const sorted = Array.from(rows.entries()).sort((a,b)=> a[1].name.localeCompare(b[1].name));
+    if(!sorted.length){
+      els.manageTeamsBody.innerHTML = `<p class="hint">${i18n('manageTeamsEmpty')}</p>`;
+      return;
+    }
+    const selectStyle = 'font-family:inherit;font-size:.8rem;padding:5px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--ink);';
+    els.manageTeamsBody.innerHTML = `<table class="mini-table">
+      <thead><tr><th>${i18n('thName')}</th><th>${i18n('thEmail')}</th><th>${i18n('thTeam')}</th><th>${i18n('thRole')}</th></tr></thead>
+      <tbody>${sorted.map(([email, r])=>{
+        const teamOptions = `<option value="">${i18n('manageTeamsUnassigned')}</option>` + teamOptionsHtml(r.team);
+        const teamCell = `<select data-member-email="${escapeHtml(email)}" style="${selectStyle}">${teamOptions}</select>`;
+        const roleCell = ADMIN_EMAILS.includes(email)
+          ? `<span class="hint" style="margin:0;" title="${escapeHtml(i18n('roleFixedAdminHint'))}">${i18n('roleAdmin')}</span>`
+          : `<select data-member-role-email="${escapeHtml(email)}" style="${selectStyle}">
+              <option value="" ${r.role === 'admin' ? '' : 'selected'}>${i18n('roleMember')}</option>
+              <option value="admin" ${r.role === 'admin' ? 'selected' : ''}>${i18n('roleAdmin')}</option>
+            </select>`;
+        return `<tr><td>${escapeHtml(r.name)}</td><td class="hint" style="margin:0;padding:8px;">${escapeHtml(email)}</td><td>${teamCell}</td><td>${roleCell}</td></tr>`;
+      }).join('')}</tbody>
+    </table>`;
+    els.manageTeamsBody.querySelectorAll('[data-member-email]').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        const email = sel.getAttribute('data-member-email');
+        const team = sel.value;
+        sel.disabled = true;
+        const existingName = (teamDirectory.members[email] && teamDirectory.members[email].name) || (rows.get(email) && rows.get(email).name) || email;
+        try{
+          await updateTeamDirectory(draft=>{
+            const prev = draft.members[email] || {};
+            draft.members[email] = Object.assign({}, prev, { team, name: existingName, updatedAt: new Date().toISOString() });
+          });
+          showToast(i18n('toastTeamUpdated'));
+          if(currentUser && email === currentUser.email) myTeam = team || null;
+          applyTeamScopeAndRender();
+        }catch(e){
+          if(e && e.authExpired){ handleSessionExpired(); return; }
+          showToast(i18n('toastTeamUpdateFailed'));
+        }
+        sel.disabled = false;
+      });
+    });
+    els.manageTeamsBody.querySelectorAll('[data-member-role-email]').forEach(sel=>{
+      sel.addEventListener('change', async ()=>{
+        const email = sel.getAttribute('data-member-role-email');
+        const role = sel.value;
+        sel.disabled = true;
+        const existingName = (teamDirectory.members[email] && teamDirectory.members[email].name) || (rows.get(email) && rows.get(email).name) || email;
+        try{
+          await updateTeamDirectory(draft=>{
+            const prev = draft.members[email] || {};
+            draft.members[email] = Object.assign({}, prev, { role, name: prev.name || existingName, updatedAt: new Date().toISOString() });
+          });
+          showToast(i18n('toastRoleUpdated'));
+          renderManageTeamsPanel();
+        }catch(e){
+          if(e && e.authExpired){ handleSessionExpired(); return; }
+          showToast(i18n('toastRoleUpdateFailed'));
+        }
+        sel.disabled = false;
+      });
+    });
+  }
+
+  function proceedAfterTeamKnown(){
+    els.uploadSection.hidden = false;
+    els.collectiveSection.hidden = false;
+    if(isAdmin()){
+      populateAdminScopeSelect();
+      els.adminScopeBar.hidden = false;
+      els.manageTeamsSection.hidden = false;
+    } else {
+      els.adminScopeBar.hidden = true;
+      els.manageTeamsSection.hidden = true;
+    }
+    refreshCollectiveView();
+  }
+
+  function proceedToTeamGate(){
+    const existing = teamDirectory.members[currentUser.email];
+    if(existing && teamDirectory.teams.includes(existing.team)){
+      myTeam = existing.team;
+      showProfileResolved();
+      proceedAfterTeamKnown();
+      return;
+    }
+    showTeamGatePicker();
+  }
+
+  // Onboarding is two gated steps sharing one step-card and the same directory record (keyed by
+  // email): nickname first, then team. Both must be resolved before the upload/shared-view
+  // sections appear.
+  async function ensureOnboardingAndProceed(){
+    els.profileGateSection.hidden = false;
+    els.nicknameGatePicker.hidden = false;
+    els.teamGatePicker.hidden = true;
+    els.profileResolved.hidden = true;
+    showNicknameGateStatus('nicknameGateLoading');
+    let dir;
+    try{
+      dir = await loadTeamDirectory();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      dir = { fileId: null, teams: DEFAULT_TEAMS.slice(), members: {} };
+    }
+    teamDirectory = dir;
+    const existing = teamDirectory.members[currentUser.email];
+    if(existing && existing.name && existing.name.trim()){
+      myNickname = existing.name.trim();
+      proceedToTeamGate();
+      return;
+    }
+    showNicknameGatePicker();
+  }
+
+  els.teamGateSelect.addEventListener('change', ()=>{
+    els.teamGateConfirmBtn.disabled = !els.teamGateSelect.value;
+  });
+  els.teamGateConfirmBtn.addEventListener('click', async ()=>{
+    const team = els.teamGateSelect.value;
+    if(!team) return;
+    els.teamGateConfirmBtn.disabled = true;
+    showTeamGateStatus('teamGateSaving');
+    try{
+      await updateTeamDirectory(draft=>{
+        const prev = draft.members[currentUser.email] || {};
+        draft.members[currentUser.email] = Object.assign({}, prev, { team, updatedAt: new Date().toISOString() });
+      });
+      myTeam = team;
+      showProfileResolved();
+      proceedAfterTeamKnown();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      showTeamGateStatus('teamGateSaveError');
+      els.teamGateConfirmBtn.disabled = false;
+    }
+  });
+
+  async function uploadJsonToDrive(file){
+    let text;
+    try{ text = await file.text(); }catch(e){ showUploadStatus('uploadReadError', {}, true); return; }
+    let parsed;
+    try{ parsed = JSON.parse(text); }catch(e){ showUploadStatus('uploadInvalidJson', {}, true); return; }
+    const entries = Array.isArray(parsed) ? parsed : parsed.entries;
+    if(!Array.isArray(entries) || !entries.length){ showUploadStatus('uploadNoEntries', {}, true); return; }
+
+    showUploadStatus('uploadChecking', {}, false);
+    const newIds = new Set(entries.filter(e=>e && e.id).map(e=>String(e.id)));
+    let existing = null;
+    try{
+      existing = await fetchAllContributions();
+      const newIdsArr = Array.from(newIds);
+      const alreadyKnown = newIdsArr.length > 0 && newIdsArr.every(id=> existing.seenIds.has(id));
+      if(alreadyKnown){
+        showUploadStatus('uploadDuplicate', {}, true);
+        return;
+      }
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      /* si la vérification échoue pour une autre raison, on tente quand même l'envoi plutôt que de bloquer à tort */
+    }
+
+    // L'historique local est cumulatif : un nouvel envoi contient presque toujours tout ce qu'un
+    // envoi précédent de la même personne contenait déjà. Plutôt que d'empiler une ligne de plus
+    // par envoi dans « Imported files », on met à jour en place le fichier le plus récent que ce
+    // nouvel envoi rend entièrement redondant, et on nettoie les éventuels autres.
+    const supersededFiles = existing ? existing.files.filter(f=>
+      f.uploaderEmail === currentUser.email && !f.unreadable && f.entryIds && f.entryIds.length &&
+      f.entryIds.every(id=> newIds.has(id))
+    ) : [];
+    supersededFiles.sort((a,b)=> b.createdTime.localeCompare(a.createdTime));
+    const fileToUpdate = supersededFiles.shift();
+    const staleFiles = supersededFiles;
+
+    showUploadStatus('uploadSending', {}, false);
+    const safeName = (currentUser.email || 'unknown').split('@')[0].replace(/[^a-zA-Z0-9]+/g, '-');
+    const metadata = {
+      name: `export-${safeName}-${new Date().toISOString().replace(/[:.]/g,'-')}.json`,
+      properties: { uploaderEmail: currentUser.email, uploaderName: myNickname || currentUser.name },
+    };
+    if(!fileToUpdate) metadata.parents = [DRIVE_FOLDER_ID];
+    const boundary = '-------scanverifier' + Date.now();
+    const body =
+      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${text}\r\n` +
+      `--${boundary}--`;
+
+    try{
+      const url = fileToUpdate
+        ? `https://www.googleapis.com/upload/drive/v3/files/${fileToUpdate.id}?uploadType=multipart`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      const res = await fetch(url, {
+        method: fileToUpdate ? 'PATCH' : 'POST',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': `multipart/related; boundary=${boundary}` },
+        body,
+      });
+      if(res.status === 401){ handleSessionExpired(); return; }
+      if(!res.ok){ showUploadStatus('uploadFailedCode', { code: res.status }, true); return; }
+      for(const stale of staleFiles){
+        try{
+          await fetch(`https://www.googleapis.com/drive/v3/files/${stale.id}`, {
+            method: 'PATCH',
+            headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trashed: true }),
+          });
+        }catch(e){ /* best-effort : un doublon obsolète non nettoyé n'est pas bloquant */ }
+      }
+      showUploadStatus('uploadSuccess', { count: entries.length }, false);
+      await refreshCollectiveView();
+    }catch(e){
+      showUploadStatus('uploadNetworkFail', {}, true);
+    }
+  }
+
+  function wireDrop(inputEl, dzEl, onFile){
+    dzEl.addEventListener('dragover', e=>{ e.preventDefault(); dzEl.classList.add('drag'); });
+    dzEl.addEventListener('dragleave', ()=> dzEl.classList.remove('drag'));
+    dzEl.addEventListener('drop', e=>{
+      e.preventDefault(); dzEl.classList.remove('drag');
+      if(e.dataTransfer.files[0]) onFile(e.dataTransfer.files[0]);
+    });
+    inputEl.addEventListener('change', ()=>{ if(inputEl.files[0]) onFile(inputEl.files[0]); inputEl.value=''; });
+  }
+  wireDrop(els.uploadFile, els.uploadDz, uploadJsonToDrive);
+
+  function emptyState(iconSvg, text){
+    return `<div class="empty-state">${iconSvg}<span class="hint" style="margin:0;">${text}</span></div>`;
+  }
+  const ICON_CLOCK = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>';
+  const ICON_WARN = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 9v4m0 4h.01M10.3 3.9 2.5 17a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>';
+  const ICON_TRAY = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h4l2 3h4l2-3h4"/><path d="M5.5 6 4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6l-1.5-6a2 2 0 0 0-2-1.5h-9a2 2 0 0 0-2 1.5Z"/></svg>';
+
+  function authExpiredError(){
+    const err = new Error('auth-expired');
+    err.authExpired = true;
+    return err;
+  }
+
+  async function fetchAllContributions(){
+    const listRawRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q='${DRIVE_FOLDER_ID}'+in+parents+and+trashed=false+and+name!='${TEAM_DIRECTORY_FILENAME}'&fields=files(id,name,properties,createdTime)&orderBy=createdTime`,
+      { headers: { Authorization: 'Bearer ' + accessToken } }
+    );
+    if(listRawRes.status === 401) throw authExpiredError();
+    const listRes = await listRawRes.json();
+    const files = listRes.files || [];
+    const allEntries = [];
+    const seenIds = new Set();
+    const byContributor = new Map();
+    const fileDetails = [];
+    for(const f of files){
+      const storedName = (f.properties && f.properties.uploaderName) || f.name;
+      const uploaderEmail = (f.properties && f.properties.uploaderEmail) || null;
+      const contributorKey = uploaderEmail || storedName;
+      try{
+        const content = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media`, {
+          headers: { Authorization: 'Bearer ' + accessToken }
+        }).then(r=>r.json());
+        const entries = Array.isArray(content) ? content : content.entries;
+        if(!Array.isArray(entries)){
+          fileDetails.push({ id:f.id, name:f.name, uploaderName:storedName, uploaderEmail, createdTime:f.createdTime, entryCount:0, entryIds:[], unreadable:true });
+          continue;
+        }
+        if(!byContributor.has(contributorKey)) byContributor.set(contributorKey, {total:0, scanned:0, email:uploaderEmail, name:storedName});
+        const c = byContributor.get(contributorKey);
+        entries.forEach(entry=>{
+          if(!entry || !entry.id) return;
+          if(seenIds.has(String(entry.id))) return;
+          seenIds.add(String(entry.id));
+          entry._uploaderEmail = uploaderEmail;
+          entry._uploaderName = storedName;
+          allEntries.push(entry);
+          const rows = entry.rows || [];
+          c.total += entryCalledTotal(entry);
+          c.scanned += rows.filter(r=>r.scanned).length;
+        });
+        // entryIds : conservé pour que uploadJsonToDrive() puisse détecter, lors d'un futur envoi,
+        // qu'un ancien fichier de cette même personne est entièrement contenu dans le nouveau
+        // (historique local cumulatif) et le remplacer au lieu d'empiler une ligne de plus.
+        const entryIds = entries.filter(e=>e && e.id).map(e=>String(e.id));
+        fileDetails.push({ id:f.id, name:f.name, uploaderName:storedName, uploaderEmail, createdTime:f.createdTime, entryCount: entries.length, entryIds });
+      }catch(e){
+        fileDetails.push({ id:f.id, name:f.name, uploaderName:storedName, uploaderEmail, createdTime:f.createdTime, entryCount:0, unreadable:true });
+      }
+    }
+    return { files: fileDetails, allEntries, seenIds, byContributor };
+  }
+
+  async function refreshCollectiveView(){
+    els.collectiveSummary.innerHTML = emptyState(ICON_CLOCK, i18n('authLoading'));
+    let data;
+    try{
+      data = await fetchAllContributions();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      els.collectiveSummary.innerHTML = emptyState(ICON_WARN, i18n('summaryLoadError'));
+      rawCollectiveData = null;
+      collectiveData = null;
+      renderTrends();
+      return;
+    }
+    rawCollectiveData = data;
+    if(isAdmin()) renderManageTeamsPanel();
+    collectiveData = scopeDataToTeam(data, effectiveTeamScope());
+    if(!collectiveData.files.length){
+      els.collectiveSummary.innerHTML = emptyState(ICON_TRAY, i18n('summaryEmpty'));
+      renderTrends();
+      return;
+    }
+    renderCollectiveSummary(collectiveData);
+    renderTrends();
+  }
+
+  async function deleteContribution(fileId){
+    if(!fileId || fileId === teamDirectory.fileId) return;
+    if(!confirm(i18n('confirmDelete'))) return;
+    try{
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}`, {
+        method: 'PATCH',
+        headers: { Authorization: 'Bearer ' + accessToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trashed: true }),
+      });
+      if(res.status === 401){ handleSessionExpired(); return; }
+      if(!res.ok){ alert(i18n('deleteFailedCode', { code: res.status })); return; }
+      await refreshCollectiveView();
+    }catch(e){
+      alert(i18n('deleteFailedNetwork'));
+    }
+  }
+
+  async function downloadContribution(fileId, filename){
+    if(!fileId || fileId === teamDirectory.fileId) return;
+    try{
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+        headers: { Authorization: 'Bearer ' + accessToken },
+      });
+      if(res.status === 401){ handleSessionExpired(); return; }
+      if(!res.ok){ alert(i18n('downloadFailedCode', { code: res.status })); return; }
+      const text = await res.text();
+      const blob = new Blob([text], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'export.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }catch(e){
+      alert(i18n('downloadFailedNetwork'));
+    }
+  }
+
+  function renderCollectiveSummary(data){
+    const { allEntries, byContributor, files } = data;
+    const allRows = allEntries.flatMap(e=> e.rows || []);
+    const total = allEntries.reduce((sum, e)=> sum + entryCalledTotal(e), 0);
+    const scanned = allRows.filter(r=>r.scanned).length;
+    const pct = total ? Math.round(scanned/total*100) : 0;
+    const contributorRows = Array.from(byContributor.entries())
+      .sort((a,b)=> b[1].total - a[1].total)
+      .map(([key,c])=>{
+        const displayName = displayNameForEmail(c.email || key, c.name || key);
+        return `<tr><td>${escapeHtml(displayName)}</td><td class="mono-num">${c.total}</td><td class="mono-num">${c.scanned}</td><td class="mono-num">${c.total?Math.round(c.scanned/c.total*100):0}%</td></tr>`;
+      }).join('');
+    const isAdminUser = isAdmin();
+    const dateLocale = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+    const fileRows = files.slice()
+      .sort((a,b)=> (b.createdTime||'').localeCompare(a.createdTime||''))
+      .map(f=>{
+        const date = f.createdTime ? new Date(f.createdTime).toLocaleString(dateLocale) : '—';
+        const countLabel = f.unreadable ? i18n('unreadable') : i18n('entriesCount', { count: f.entryCount });
+        const canDelete = isAdminUser || (currentUser && f.uploaderEmail && f.uploaderEmail === currentUser.email);
+        const downloadCell = `<button class="ghost" data-download-file="${escapeHtml(f.id)}" data-download-name="${escapeHtml(f.name || 'export.json')}" style="padding:4px 10px;font-size:.72rem;">${i18n('downloadBtn')}</button>`;
+        const deleteCell = canDelete
+          ? `<button class="ghost" data-delete-file="${escapeHtml(f.id)}" style="padding:4px 10px;font-size:.72rem;">${i18n('deleteBtn')}</button>`
+          : '';
+        return `<tr>
+          <td>${escapeHtml(displayNameForEmail(f.uploaderEmail, f.uploaderName))}</td>
+          <td class="hint" style="padding:8px;margin:0;">${date}</td>
+          <td class="mono-num">${countLabel}</td>
+          <td style="display:flex;gap:6px;">${downloadCell}${deleteCell}</td>
+        </tr>`;
+      }).join('');
+    els.collectiveSummary.innerHTML = `
+      <div class="tiles">
+        <div class="tile"><span class="tile-label">${i18n('tileVerifications')}</span><span class="tile-value">${allEntries.length}</span><span class="tile-sub">${i18n('tileVerificationsSub')}</span></div>
+        <div class="tile"><span class="tile-label">${i18n('tilePatients')}</span><span class="tile-value">${total}</span><span class="tile-sub">${i18n('tilePatientsSub')}</span></div>
+        <div class="tile"><span class="tile-label">${i18n('tileScanRate')}</span><span class="tile-value good">${pct}%</span><span class="tile-sub">${i18n('tileScanRateSub', { scanned, total })}</span></div>
+      </div>
+      <table class="mini-table">
+        <thead><tr><th>${i18n('thContributor')}</th><th class="num">${i18n('thPatients')}</th><th class="num">${i18n('thScanned')}</th><th class="num">${i18n('thRate')}</th></tr></thead>
+        <tbody>${contributorRows}</tbody>
+      </table>
+      <h3 style="font-size:.8rem;font-weight:700;margin:22px 0 2px;color:var(--ink-2);">${i18n('filesImportedTitle')}</h3>
+      <table class="mini-table">
+        <thead><tr><th>${i18n('thContributor')}</th><th>${i18n('thDate')}</th><th class="num">${i18n('thEntries')}</th><th></th></tr></thead>
+        <tbody>${fileRows}</tbody>
+      </table>
+    `;
+    document.querySelectorAll('[data-delete-file]').forEach(btn=>{
+      btn.addEventListener('click', ()=> deleteContribution(btn.getAttribute('data-delete-file')));
+    });
+    document.querySelectorAll('[data-download-file]').forEach(btn=>{
+      btn.addEventListener('click', ()=> downloadContribution(btn.getAttribute('data-download-file'), btn.getAttribute('data-download-name')));
+    });
+  }
+
+  els.refreshBtn.addEventListener('click', refreshCollectiveView);
+
+  // ============================= Trends tab =============================
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function dayKeyFromISO(iso){
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+  function formatDayLabel(key){
+    const [y,m,d] = key.split('-');
+    return `${d}/${m}`;
+  }
+
+  function normalizeAggressive(s){
+    var noAccents = String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    return noAccents.toLowerCase().replace(/[^a-z0-9]/g,'');
+  }
+  function inferCampaignChannel(label){
+    const norm = normalizeAggressive(label);
+    if(norm.includes('email') || norm.includes('mail')) return 'email';
+    if(norm.includes('sms')) return 'sms';
+    if(norm.includes('appel') || norm.includes('call') || norm.includes('telephone') || norm.includes('phone')) return 'appel';
+    return null;
+  }
+
+  // Filter pipeline for the Trends tab: team scope (already applied to collectiveData) → campaign
+  // type → contributor → a specific set of entries. Each stage narrows what the next stage's
+  // dropdown offers, so picking a contributor first shrinks the entry list to just their entries.
+  function entriesAfterChannelFilter(){
+    const entries = (collectiveData && collectiveData.allEntries) || [];
+    if(!trendsChannel) return entries;
+    return entries.filter(e=> inferCampaignChannel(e.label) === trendsChannel);
+  }
+  function entriesAfterContributorFilter(){
+    let entries = entriesAfterChannelFilter();
+    if(trendsContributor) entries = entries.filter(e=> (e._uploaderEmail || e._uploaderName) === trendsContributor);
+    return entries.slice().sort((a,b)=> b.savedAt.localeCompare(a.savedAt));
+  }
+  function getFilteredTrendEntries(){
+    let entries = entriesAfterContributorFilter();
+    if(trendsEntryFilter.length) entries = entries.filter(e=> trendsEntryFilter.includes(String(e.id)));
+    return entries;
+  }
+  function allTrendRows(){
+    return getFilteredTrendEntries().flatMap(e=> e.rows || []);
+  }
+
+  els.trendsChannelFilter.addEventListener('change', ()=>{
+    trendsChannel = els.trendsChannelFilter.value;
+    entryFilterAnchorIndex = null;
+    renderTrends();
+  });
+
+  function populateContributorFilterSelect(){
+    const entries = entriesAfterChannelFilter();
+    const byKey = new Map();
+    entries.forEach(e=>{
+      const key = e._uploaderEmail || e._uploaderName;
+      if(key && !byKey.has(key)) byKey.set(key, displayNameForEmail(e._uploaderEmail, e._uploaderName));
+    });
+    const options = Array.from(byKey.entries()).sort((a,b)=> a[1].localeCompare(b[1]));
+    const prev = trendsContributor;
+    els.trendsContributorFilter.innerHTML = `<option value="">${i18n('contributorFilterAll')}</option>` +
+      options.map(([key,label])=>`<option value="${escapeHtml(key)}">${escapeHtml(label)}</option>`).join('');
+    trendsContributor = options.some(([key])=> key === prev) ? prev : '';
+    els.trendsContributorFilter.value = trendsContributor;
+  }
+  els.trendsContributorFilter.addEventListener('change', ()=>{
+    trendsContributor = els.trendsContributorFilter.value;
+    entryFilterAnchorIndex = null;
+    renderTrends();
+  });
+
+  function populateEntryFilterSelect(){
+    const entries = entriesAfterContributorFilter();
+    const dateLocale = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+    const validIds = new Set(entries.map(e=> String(e.id)));
+    trendsEntryFilter = trendsEntryFilter.filter(id=> validIds.has(id));
+    if(!entries.length){
+      els.trendsEntryFilterList.innerHTML = `<p class="entry-filter-empty">${i18n('entryFilterEmpty')}</p>`;
+      return;
+    }
+    els.trendsEntryFilterList.innerHTML = entries.map(e=>{
+      const idStr = String(e.id);
+      const date = e.savedAt ? new Date(e.savedAt).toLocaleDateString(dateLocale) : '';
+      const label = `${displayNameForEmail(e._uploaderEmail, e._uploaderName)} — ${e.label || ''} (${date})`;
+      const checked = trendsEntryFilter.includes(idStr);
+      return `<label class="entry-filter-row${checked ? ' checked' : ''}">
+        <input type="checkbox" value="${escapeHtml(idStr)}"${checked ? ' checked' : ''}>
+        <span>${escapeHtml(label)}</span>
+      </label>`;
+    }).join('');
+  }
+  // Shift-click range-select: click one row, shift-click another to check/uncheck everything
+  // between them (Finder/Gmail-style). The anchor index survives re-renders triggered by the
+  // checkbox clicks themselves, but is reset whenever the channel/CX filters change the
+  // underlying entry list (see their change handlers above), so a stale index never applies
+  // to a conceptually different entry.
+  els.trendsEntryFilterList.addEventListener('click', e=>{
+    const checkbox = e.target.closest('input[type=checkbox]');
+    if(!checkbox) return;
+    const boxes = Array.from(els.trendsEntryFilterList.querySelectorAll('input[type=checkbox]'));
+    const idx = boxes.indexOf(checkbox);
+    if(e.shiftKey && entryFilterAnchorIndex !== null && entryFilterAnchorIndex !== idx){
+      const [start, end] = idx < entryFilterAnchorIndex ? [idx, entryFilterAnchorIndex] : [entryFilterAnchorIndex, idx];
+      const targetState = checkbox.checked;
+      for(let i = start; i <= end; i++){ boxes[i].checked = targetState; }
+    }
+    entryFilterAnchorIndex = idx;
+    trendsEntryFilter = boxes.filter(b=> b.checked).map(b=> b.value);
+    renderTrends();
+  });
+
+  function classifyCommitment(raw){
+    const v = (raw||'').toLowerCase();
+    if(/(élev|engag|high|fort)/.test(v)) return 'good';
+    if(/(modér|moyen|medium)/.test(v)) return 'warn';
+    if(/(faible|risque|low|risk|disengag)/.test(v)) return 'bad';
+    return 'neutral';
+  }
+  function commitmentColorVar(label){
+    const cls = classifyCommitment(label);
+    if(cls === 'good') return 'var(--good)';
+    if(cls === 'warn') return 'var(--warn)';
+    if(cls === 'bad') return 'var(--bad)';
+    return 'var(--accent)';
+  }
+  function computeCommitmentBreakdown(rows){
+    const grandTotal = rows.length;
+    const groups = new Map();
+    rows.forEach(r=>{
+      const key = r.commitment || '—';
+      if(!groups.has(key)) groups.set(key, {total:0, scanned:0});
+      const g = groups.get(key);
+      g.total++;
+      if(r.scanned) g.scanned++;
+    });
+    return Array.from(groups.entries())
+      .map(([label,g])=>({
+        label, total:g.total, scanned:g.scanned,
+        scanPct: g.total ? Math.round(g.scanned/g.total*100) : 0,
+        sharePct: grandTotal ? Math.round(g.total/grandTotal*100) : 0,
+      }))
+      .sort((a,b)=> a.scanPct - b.scanPct);
+  }
+  function renderCommitmentBreakdown(rows){
+    const data = computeCommitmentBreakdown(rows);
+    if(!data.length){
+      els.commitmentBreakdown.innerHTML = `<p class="hint">${i18n('commitmentEmpty')}</p>`;
+      return;
+    }
+    els.commitmentBreakdown.innerHTML = `<div class="timebars">${data.map(d=>{
+      return `<div class="timebar-row">
+        <span class="timebar-label">${escapeHtml(d.label)}</span>
+        <div class="timebar-track">
+          <div class="timebar-share" style="width:${d.sharePct}%">
+            <div class="timebar-fill" style="width:${d.scanPct}%;background:${commitmentColorVar(d.label)}"></div>
+          </div>
+        </div>
+        <span class="timebar-value"><strong>${d.scanPct}%</strong> <span class="timebar-count">(${d.scanned}/${d.total})</span></span>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  function buildLineChartSVG(series, opts){
+    const o = Object.assign({width:520,height:190,padding:{top:18,right:16,bottom:26,left:32},min:0,max:100,suffix:'%'}, opts||{});
+    const {width,height,padding,min,max,suffix} = o;
+    const innerW = width - padding.left - padding.right;
+    const innerH = height - padding.top - padding.bottom;
+    if(!series.length){
+      return {
+        svgHtml: `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${i18n('chartAriaLabel')}"><text x="${width/2}" y="${height/2}" text-anchor="middle" fill="var(--muted)" font-size="12">${i18n('noDataYet')}</text></svg>`,
+        points: [],
+      };
+    }
+    const n = series.length;
+    const stepX = n > 1 ? innerW/(n-1) : 0;
+    const yFor = v => padding.top + innerH - ((v-min)/(max-min))*innerH;
+    const points = series.map((d,i)=>({
+      cx: padding.left + (n>1 ? i*stepX : innerW/2),
+      cy: yFor(d.value),
+      label: d.label,
+      value: d.value,
+    }));
+
+    let gridSvg = '';
+    for(let g=0; g<=4; g++){
+      const v = min + (max-min)*g/4;
+      const y = yFor(v);
+      gridSvg += `<line x1="${padding.left}" y1="${y.toFixed(1)}" x2="${width-padding.right}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1" />`;
+      gridSvg += `<text x="${padding.left-6}" y="${(y+3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${Math.round(v)}${suffix}</text>`;
+    }
+
+    const showEvery = n <= 7 ? 1 : Math.ceil(n/6);
+    let xLabelsSvg = '';
+    points.forEach((p,i)=>{
+      if(i % showEvery === 0 || i === n-1){
+        xLabelsSvg += `<text x="${p.cx.toFixed(1)}" y="${height-8}" text-anchor="middle" font-size="9" fill="var(--muted)">${escapeHtml(series[i].label)}</text>`;
+      }
+    });
+
+    let lineSvg = '', circlesSvg = '';
+    if(n > 1){
+      const linePath = points.map((p,i)=> (i===0?'M':'L')+p.cx.toFixed(1)+','+p.cy.toFixed(1)).join(' ');
+      const baseline = (padding.top+innerH).toFixed(1);
+      const areaPath = `${linePath} L${points[n-1].cx.toFixed(1)},${baseline} L${points[0].cx.toFixed(1)},${baseline} Z`;
+      lineSvg = `<path d="${areaPath}" fill="var(--accent-soft)" stroke="none" />
+        <path d="${linePath}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+    }
+    circlesSvg = points.map(p=>`<circle cx="${p.cx.toFixed(1)}" cy="${p.cy.toFixed(1)}" r="4" fill="var(--surface)" stroke="var(--accent)" stroke-width="2" />`).join('');
+
+    const last = points[n-1];
+    const endLabelSvg = `<text x="${last.cx.toFixed(1)}" y="${(last.cy-10).toFixed(1)}" text-anchor="${n>1?'end':'middle'}" font-size="11" font-weight="600" fill="var(--accent-strong)">${series[n-1].value}${suffix}</text>`;
+
+    const svgHtml = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="${i18n('chartAriaLabel')}">
+      ${gridSvg}${lineSvg}${circlesSvg}${endLabelSvg}${xLabelsSvg}
+    </svg>`;
+    return {svgHtml, points};
+  }
+
+  function wireChartHover(wrapEl, tooltipEl, pointsGetter, suffix){
+    wrapEl.addEventListener('mousemove', e=>{
+      const points = pointsGetter();
+      const svgEl = wrapEl.querySelector('svg');
+      if(!points.length || !svgEl){ tooltipEl.style.opacity = 0; return; }
+      const rect = svgEl.getBoundingClientRect();
+      const vb = svgEl.viewBox.baseVal;
+      const scaleXToVb = vb.width / rect.width;
+      const mx = (e.clientX - rect.left) * scaleXToVb;
+      let nearest = points[0], bestDist = Infinity;
+      points.forEach(p=>{ const dist = Math.abs(p.cx - mx); if(dist < bestDist){ bestDist = dist; nearest = p; } });
+      const pxPerVbX = rect.width / vb.width;
+      const pxPerVbY = rect.height / vb.height;
+      tooltipEl.style.left = (nearest.cx * pxPerVbX) + 'px';
+      tooltipEl.style.top = (nearest.cy * pxPerVbY) + 'px';
+      tooltipEl.textContent = `${nearest.label} · ${nearest.value}${suffix}`;
+      tooltipEl.style.opacity = 1;
+    });
+    wrapEl.addEventListener('mouseleave', ()=>{ tooltipEl.style.opacity = 0; });
+  }
+
+  let dailyChartPoints = [];
+  function dailyTrendSeries(){
+    const byDay = new Map();
+    getFilteredTrendEntries().forEach(e=>{
+      const key = dayKeyFromISO(e.savedAt);
+      const existing = byDay.get(key);
+      if(!existing || e.savedAt > existing.savedAt) byDay.set(key, e);
+    });
+    return Array.from(byDay.keys()).sort().map(key=>({
+      label: formatDayLabel(key), value: byDay.get(key).stats.pct,
+    }));
+  }
+  function renderDailyChart(){
+    const series = dailyTrendSeries();
+    const {svgHtml, points} = buildLineChartSVG(series);
+    els.dailyChart.innerHTML = svgHtml;
+    dailyChartPoints = points;
+    if(series.length){
+      const last = series[series.length - 1];
+      els.dailyChartExample.innerHTML = i18n('dailyChartLastPoint', { label: escapeHtml(last.label), value: last.value });
+    } else {
+      els.dailyChartExample.textContent = '';
+    }
+  }
+  wireChartHover(els.dailyChartWrap, els.dailyTooltip, ()=>dailyChartPoints, '%');
+
+  function getAllDoctorNames(){
+    const set = new Set();
+    allTrendRows().forEach(r=>{ if(r.doctor && r.doctor !== '—') set.add(r.doctor); });
+    return Array.from(set).sort((a,b)=>a.localeCompare(b));
+  }
+
+  function trendChannelLabel(channel){
+    if(channel === 'appel') return i18n('channelCalls');
+    if(channel === 'email') return i18n('channelEmail');
+    if(channel === 'sms') return i18n('channelSms');
+    return null;
+  }
+  function trendEmojiForDirection(direction){
+    if(direction === 'up') return '↗️';
+    if(direction === 'down') return '↘️';
+    return '➡️';
+  }
+  function trendDescriptionForTrend(tr){
+    if(tr.direction === 'flat') return i18n('trendStable', { pct: tr.last.pct });
+    const sign = tr.delta > 0 ? '+' : '';
+    return i18n('trendDelta', { sign, delta: tr.delta, prevPct: tr.prev.pct, lastPct: tr.last.pct });
+  }
+  function trendLineFor(tr){
+    const label = trendChannelLabel(tr.channel);
+    return `${trendEmojiForDirection(tr.direction)} ${label ? label + ' — ' : ''}${trendDescriptionForTrend(tr)}`;
+  }
+  function computeDoctorTrends(timeline){
+    const trends = [];
+    ['appel','email','sms'].forEach(channel=>{
+      const entries = timeline.filter(t=>t.channel === channel);
+      if(entries.length < 2) return;
+      const prev = entries[entries.length-2], last = entries[entries.length-1];
+      const delta = last.pct - prev.pct;
+      trends.push({ channel, delta, direction: delta > 0 ? 'up' : (delta < 0 ? 'down' : 'flat'), prev, last });
+    });
+    if(!trends.length && timeline.length >= 2){
+      const prev = timeline[timeline.length-2], last = timeline[timeline.length-1];
+      const delta = last.pct - prev.pct;
+      trends.push({ channel: null, delta, direction: delta > 0 ? 'up' : (delta < 0 ? 'down' : 'flat'), prev, last });
+    }
+    return trends;
+  }
+  function computeDoctorScorecard(doctorName){
+    const rows = allTrendRows().filter(r=> r.doctor === doctorName);
+    const total = rows.length;
+    const scanned = rows.filter(r=>r.scanned).length;
+    const pct = total ? Math.round(scanned/total*100) : 0;
+    const timeline = getFilteredTrendEntries().slice()
+      .sort((a,b)=> a.savedAt.localeCompare(b.savedAt))
+      .map(entry=>{
+        const entryRows = (entry.rows || []).filter(r=> r.doctor === doctorName);
+        if(!entryRows.length) return null;
+        const s = entryRows.filter(r=>r.scanned).length;
+        return { savedAt: entry.savedAt, label: entry.label, total: entryRows.length, scanned: s, pct: Math.round(s/entryRows.length*100), channel: inferCampaignChannel(entry.label) };
+      })
+      .filter(Boolean);
+    const trends = computeDoctorTrends(timeline);
+    return { doctor: doctorName, total, scanned, pct, timeline, trends };
+  }
+
+  function buildDoctorScorecardText(data){
+    const dateLocale = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+    const lines = [];
+    lines.push(i18n('scorecardDoctorTitle', { doctor: data.doctor }));
+    lines.push(i18n('scorecardGeneratedOn', { date: new Date().toLocaleString(dateLocale) }));
+    lines.push('');
+    lines.push(i18n('scorecardVolumeLine', { total: data.total }));
+    lines.push(i18n('scorecardRateLine', { pct: data.pct, scanned: data.scanned, total: data.total }));
+    lines.push('');
+    if(data.trends.length){
+      data.trends.forEach(tr=> lines.push(trendLineFor(tr)));
+    } else {
+      lines.push(i18n('scorecardNoTrend'));
+    }
+    lines.push('');
+    if(data.timeline.length){
+      lines.push(i18n('scorecardDetailLine'));
+      data.timeline.forEach(tr=>{
+        lines.push(`- ${new Date(tr.savedAt).toLocaleDateString(dateLocale)} — ${tr.label} : ${tr.pct}% (${tr.scanned}/${tr.total})`);
+      });
+    }
+    return lines.join('\n');
+  }
+
+  function downloadFile(filename, content, mimeType){
+    const blob = new Blob([content], {type: mimeType || 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+
+  function copyDoctorScorecard(doctorName){
+    const data = computeDoctorScorecard(doctorName);
+    navigator.clipboard.writeText(buildDoctorScorecardText(data)).then(()=> showToast(i18n('toastCopied'))).catch(()=>{});
+  }
+  function downloadDoctorScorecard(doctorName){
+    const data = computeDoctorScorecard(doctorName);
+    downloadFile(`doctor-scorecard-${slugifyFilename(doctorName)}.txt`, buildDoctorScorecardText(data), 'text/plain');
+  }
+
+  function renderDoctorScorecardBody(){
+    const doctorName = els.doctorScorecardSelect.value;
+    if(!doctorName){
+      els.doctorScorecard.innerHTML = `<p class="hint">${i18n('scorecardChoose')}</p>`;
+      return;
+    }
+    const dateLocale = currentLang === 'fr' ? 'fr-FR' : 'en-US';
+    const data = computeDoctorScorecard(doctorName);
+    const trendHtml = data.trends.length
+      ? data.trends.map(tr=>{
+          const label = trendChannelLabel(tr.channel);
+          return `<p class="trend-line hint"><span class="trend-emoji">${trendEmojiForDirection(tr.direction)}</span> ${label ? `<strong>${escapeHtml(label)}</strong> — ` : ''}${escapeHtml(trendDescriptionForTrend(tr))}</p>`;
+        }).join('')
+      : `<p class="hint" style="margin-top:10px;">${i18n('scorecardNoTrend')}</p>`;
+    els.doctorScorecard.innerHTML = `
+      <div class="scorecard-tiles">
+        <div class="tile"><span class="tile-label">${i18n('scorecardVolume')}</span><span class="tile-value">${data.total}</span><span class="tile-sub">${i18n('scorecardVolumeSub')}</span></div>
+        <div class="tile"><span class="tile-label">${i18n('scorecardRate')}</span><span class="tile-value">${data.pct}%</span><span class="tile-sub">(${data.scanned}/${data.total})</span></div>
+      </div>
+      ${trendHtml}
+      ${data.timeline.length ? `<ul class="scorecard-timeline">${data.timeline.map(tr=>`<li><span>${new Date(tr.savedAt).toLocaleDateString(dateLocale)} — ${escapeHtml(tr.label)}</span><span><strong>${tr.pct}%</strong> <span class="timebar-count">(${tr.scanned}/${tr.total})</span></span></li>`).join('')}</ul>` : ''}
+      <div class="scorecard-actions">
+        <button class="ghost btn-small" id="scorecardCopyBtn">${i18n('copyBtn')}</button>
+        <button class="ghost btn-small" id="scorecardDownloadBtn">${i18n('downloadBtn')}</button>
+        <button class="ghost btn-small" id="scorecardListBtn">${i18n('patientListBtn')}</button>
+      </div>
+    `;
+    document.getElementById('scorecardCopyBtn').addEventListener('click', ()=> copyDoctorScorecard(doctorName));
+    document.getElementById('scorecardDownloadBtn').addEventListener('click', ()=> downloadDoctorScorecard(doctorName));
+    document.getElementById('scorecardListBtn').addEventListener('click', ()=> downloadDoctorPatientListCsv(doctorName));
+  }
+
+  function renderDoctorScorecardSelect(){
+    const names = getAllDoctorNames();
+    const prev = els.doctorScorecardSelect.value;
+    const placeholder = `<option value="">${i18n('scorecardPlaceholder')}</option>`;
+    els.doctorScorecardSelect.innerHTML = placeholder + names.map(n=>`<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    els.doctorScorecardSelect.value = names.includes(prev) ? prev : '';
+    renderDoctorScorecardBody();
+  }
+  els.doctorScorecardSelect.addEventListener('change', renderDoctorScorecardBody);
+
+  const DOCTOR_LEADERBOARD_MIN_VOLUME = 20;
+  const DOCTOR_LEADERBOARD_POOL_SIZE = 20;
+
+  function isRiskyCommitment(label){
+    const v = (label||'').trim().toLowerCase();
+    return v === 'scanned rookie' || v === 'no scan published';
+  }
+  function computeDoctorRiskyBreakdown(rows){
+    const groups = new Map();
+    rows.forEach(r=>{
+      const doc = r.doctor || '—';
+      if(!groups.has(doc)) groups.set(doc, {total:0, risky:0, riskyScanned:0});
+      const g = groups.get(doc);
+      g.total++;
+      if(isRiskyCommitment(r.commitment)){
+        g.risky++;
+        if(r.scanned) g.riskyScanned++;
+      }
+    });
+    return Array.from(groups.entries())
+      .map(([doctor,g])=>({
+        doctor, total:g.total, risky:g.risky, riskyScanned:g.riskyScanned,
+        riskyPct: g.total ? Math.round(g.risky/g.total*100) : 0,
+        riskyScanPct: g.risky ? Math.round(g.riskyScanned/g.risky*100) : 0,
+      }))
+      .filter(d=> d.total >= DOCTOR_LEADERBOARD_MIN_VOLUME)
+      .sort((a,b)=> b.riskyPct - a.riskyPct);
+  }
+  function renderDoctorLeaderboard(rows){
+    const pool = computeDoctorRiskyBreakdown(rows).slice(0, DOCTOR_LEADERBOARD_POOL_SIZE);
+    if(!pool.length){
+      els.doctorLeaderboard.innerHTML = `<p class="hint">${i18n('leaderboardEmpty', { min: DOCTOR_LEADERBOARD_MIN_VOLUME })}</p>`;
+      return;
+    }
+    els.doctorLeaderboard.innerHTML = `<table class="mini-table">
+      <thead><tr><th>#</th><th>${i18n('thDoctor')}</th><th>${i18n('thRisky')}</th><th>${i18n('thRiskyScanned')}</th></tr></thead>
+      <tbody>${pool.map((d,i)=>{
+        const downloadBtn = d.risky ? `<button class="link-btn" data-download-doctor="${escapeHtml(d.doctor)}" title="${i18n('downloadBtn')}">⬇</button>` : '';
+        return `<tr>
+        <td class="rank">${i+1}</td>
+        <td>${escapeHtml(d.doctor)}</td>
+        <td class="pct">${d.riskyPct}% <span class="timebar-count" style="font-weight:400;">(${d.risky}/${d.total})</span>${downloadBtn}</td>
+        <td class="pct">${d.riskyScanPct}% <span class="timebar-count" style="font-weight:400;">(${d.riskyScanned}/${d.risky})</span></td>
+      </tr>`;
+      }).join('')}</tbody>
+    </table>`;
+  }
+  els.doctorLeaderboard.addEventListener('click', e=>{
+    const doctorName = e.target.getAttribute('data-download-doctor');
+    if(doctorName) downloadDoctorRiskyPatients(doctorName);
+  });
+
+  function getRiskyRowsForDoctor(doctorName){
+    return allTrendRows().filter(r=> (r.doctor || '—') === doctorName && isRiskyCommitment(r.commitment));
+  }
+  function csvEscape(value){
+    const s = String(value === undefined || value === null ? '' : value);
+    if(/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  function slugifyFilename(s){
+    var noAccents = String(s||'doctor').normalize('NFD').replace(/[̀-ͯ]/g,'');
+    const slug = noAccents.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || 'doctor';
+  }
+  function patientCsvRows(rows){
+    const header = ['patient_profile_id','patient','doctor_name','patient_commitment_level','days_late','status','scan_date','monitoring_url','phone'];
+    return [header.join(',')].concat(rows.map(r=>[
+      r.id, r.name, r.doctor, r.commitment, r.daysLate, r.scanned ? i18n('statusScanned') : i18n('statusNotScanned'), r.scanDate, r.url, r.phone
+    ].map(csvEscape).join(',')));
+  }
+  function downloadDoctorRiskyPatients(doctorName){
+    const rows = getRiskyRowsForDoctor(doctorName);
+    if(!rows.length){ showToast(i18n('toastNoPatients')); return; }
+    downloadFile(`scan-rookie-nsptm-patients-${slugifyFilename(doctorName)}.csv`, patientCsvRows(rows).join('\n'), 'text/csv');
+  }
+  function downloadDoctorPatientListCsv(doctorName){
+    const rows = allTrendRows().filter(r=> r.doctor === doctorName);
+    if(!rows.length){ showToast(i18n('toastNoPatients')); return; }
+    downloadFile(`patients-${slugifyFilename(doctorName)}.csv`, patientCsvRows(rows).join('\n'), 'text/csv');
+  }
+
+  // ============================= Aircall (reads the frozen snapshot from each entry) =============================
+  // No live CSV/Excel upload here — Aircall results are frozen per history entry in each
+  // person's individual tool ("Figer à cette entrée"), travel inside the exported JSON as
+  // entry.aircallSnapshot, and are simply displayed (aggregated across whatever entries are
+  // currently in view) rather than recomputed from a raw import.
+
+  function renderAircallTable(buckets, footerText){
+    els.aircallBreakdown.innerHTML = `<table class="mini-table">
+      <thead><tr><th>${i18n('thCategory')}</th><th class="num">${i18n('thVolume')}</th><th class="num">${i18n('thScannedAfter')}</th></tr></thead>
+      <tbody>${buckets.map(b=>`<tr>
+        <td>${escapeHtml(b.label)}</td>
+        <td class="pct">${b.total}</td>
+        <td class="pct">${b.total ? Math.round(b.scannedAfter/b.total*100) : 0}% <span class="timebar-count" style="font-weight:400;">(${b.scannedAfter}/${b.total})</span></td>
+      </tr>`).join('')}</tbody>
+    </table>
+    <p class="hint" style="margin-top:8px;">${footerText}</p>`;
+  }
+
+  function renderAircallBreakdown(){
+    const entries = getFilteredTrendEntries();
+    const withSnapshot = entries.filter(e=> e.aircallSnapshot && Array.isArray(e.aircallSnapshot.buckets));
+    if(!withSnapshot.length){
+      els.aircallBreakdown.innerHTML = `<p class="hint">${i18n('aircallNoFrozenData')}</p>`;
+      return;
+    }
+    const bucketMap = {
+      messagerie: { key:'messagerie', label:i18n('aircallBucketVoicemail'), total:0, scannedAfter:0 },
+      decroche: { key:'decroche', label:i18n('aircallBucketAnswered'), total:0, scannedAfter:0 },
+      non_decroche: { key:'non_decroche', label:i18n('aircallBucketNotAnswered'), total:0, scannedAfter:0 },
+    };
+    let matched = 0, totalCalls = 0;
+    withSnapshot.forEach(e=>{
+      const snap = e.aircallSnapshot;
+      matched += snap.matched || 0;
+      totalCalls += snap.totalCalls || 0;
+      (snap.buckets || []).forEach(b=>{
+        const target = bucketMap[b.key];
+        if(!target) return;
+        target.total += b.total || 0;
+        target.scannedAfter += b.scannedAfter || 0;
+      });
+    });
+    renderAircallTable(
+      [bucketMap.messagerie, bucketMap.decroche, bucketMap.non_decroche],
+      i18n('aircallFrozenSummary', { withCount: withSnapshot.length, totalCount: entries.length, matched, totalCalls })
+    );
+  }
+
+  function renderTrends(){
+    const hasData = collectiveData && collectiveData.allEntries && collectiveData.allEntries.length;
+    els.trendsEmpty.hidden = !!hasData;
+    els.trendsBody.hidden = !hasData;
+    if(!hasData) return;
+    populateContributorFilterSelect();
+    populateEntryFilterSelect();
+    renderDailyChart();
+    renderCommitmentBreakdown(allTrendRows());
+    renderDoctorScorecardSelect();
+    renderDoctorLeaderboard(allTrendRows());
+    renderAircallBreakdown();
+  }
+
+  // ============================= Tabs & language =============================
+
+  function showPage(page){
+    els.pageOverview.hidden = page !== 'overview';
+    els.pageTrends.hidden = page !== 'trends';
+    els.pageDocs.hidden = page !== 'docs';
+    els.tabOverviewBtn.classList.toggle('active', page === 'overview');
+    els.tabTrendsBtn.classList.toggle('active', page === 'trends');
+    els.tabDocsBtn.classList.toggle('active', page === 'docs');
+  }
+  els.tabOverviewBtn.addEventListener('click', ()=> showPage('overview'));
+  els.tabTrendsBtn.addEventListener('click', ()=> showPage('trends'));
+  els.tabDocsBtn.addEventListener('click', ()=> showPage('docs'));
+
+  function applyI18n(){
+    document.documentElement.lang = currentLang;
+    document.querySelectorAll('[data-i18n]').forEach(el=>{
+      el.textContent = i18n(el.getAttribute('data-i18n'));
+    });
+    els.langBtnEn.classList.toggle('active', currentLang === 'en');
+    els.langBtnFr.classList.toggle('active', currentLang === 'fr');
+    renderAuthStatus();
+    renderGoogleBtnLabel();
+    renderUploadStatus();
+    renderProfileGateState();
+    renderCollabChangelog();
+    if(isAdmin() && !els.adminScopeBar.hidden){
+      populateAdminScopeSelect();
+      renderManageTeamsPanel();
+    }
+    if(collectiveData) renderCollectiveSummary(collectiveData);
+    renderTrends();
+  }
+  function setLang(lang){
+    if(lang === currentLang) return;
+    currentLang = lang;
+    saveLang(lang);
+    applyI18n();
+  }
+  els.langBtnEn.addEventListener('click', ()=> setLang('en'));
+  els.langBtnFr.addEventListener('click', ()=> setLang('fr'));
+
+  applyI18n();
+
+  if(!isConfigured()){
+    setAuthStatus('authMisconfigured', {}, 'err');
+  }
+})();
+</script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>

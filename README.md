@@ -1,27 +1,36 @@
-# Suivi Relance Scan — Collab
+# Suivi Relance Scan
 
-Vue collective des exports JSON de l'outil individuel, stockés dans un dossier Google Drive partagé.
-L'app est une page statique installable (PWA) : aucun serveur, aucune base de données.
+App installable (PWA) qui réunit l'outil individuel et la vue collective de l'équipe :
 
-## Déploiement
+- **Mon suivi** : liste des patients à contacter + export « scan yesterday » → dashboard → « Ajouter à l'historique ».
+  L'historique est enregistré directement dans le dossier Google Drive partagé (un fichier `history-<personne>.json` par personne,
+  plus les fichiers d'origine en `source-…`).
+- **Tendances** : taux de scan par jour, commitment level, fiche docteur, top docteurs Scan rookie/NSPTM, Aircall, comparaison.
+- **Équipe** (managers et admins) : comparaison entre équipes, détail par CX, fichiers de données, gestion des équipes/rôles (admin).
 
-Chaque push sur `main` déclenche `.github/workflows/pages.yml`, qui publie le site sur GitHub Pages :
-`https://mherberger-sys.github.io/Scan-Reminder-Tracking/`
+## Rôles
 
-Une seule fois :
-1. **Settings → Pages → Build and deployment → Source : GitHub Actions.**
-2. **Google Cloud Console → APIs & Services → Credentials →** le client OAuth
-   `464525857093-…` **→ Authorized JavaScript origins :** ajouter `https://mherberger-sys.github.io`.
-   Sans ça, la connexion Google échoue (`origin_mismatch`).
+| Rôle | Tendances | Onglet Équipe | Gestion |
+|---|---|---|---|
+| CX | ses données + moyenne de son équipe (sans nom de collègue) | — | — |
+| Manager | ses données, n'importe quelle équipe, toutes les équipes, détail par CX | oui | — |
+| Admin | idem manager | oui | équipes, rôles, fichiers |
 
-## Installer en app
-
-- **Chrome / Edge (ordinateur)** : icône « Installer » dans la barre d'adresse.
-- **Android (Chrome)** : menu ⋮ → « Installer l'application ».
-- **iPhone / iPad (Safari)** : Partager → « Sur l'écran d'accueil ».
+Les rôles se règlent dans Équipe → « Gérer les équipes et les rôles ». L'admin fixe est défini dans `app.js` (`ADMIN_EMAILS`).
+Les rôles règlent l'affichage : toute personne ayant accès au dossier Drive peut techniquement en ouvrir les fichiers.
 
 ## Fichiers
 
-- `index.html` — l'application
-- `manifest.webmanifest`, `icons/` — métadonnées d'installation
-- `sw.js` — service worker (met en cache uniquement les fichiers de l'app ; les appels Google/Drive passent toujours par le réseau)
+- `index.html` — structure de la page
+- `styles.css` — styles
+- `i18n.js` — textes FR/EN et changelogs
+- `app.js` — logique (croisement des fichiers, historique Drive, tendances, rôles)
+- `manifest.webmanifest`, `icons/`, `sw.js` — installation en app et cache hors ligne (fichiers de l'app uniquement)
+- `legacy/` — copies intactes des deux outils d'origine (non publiées)
+
+## Déploiement
+
+Chaque push sur `main` ou `claude/nice-lovelace-689jsr` publie le site sur GitHub Pages via `.github/workflows/pages.yml` :
+`https://mherberger-sys.github.io/Scan-Reminder-Tracking/`
+
+Prérequis Google Cloud : `https://mherberger-sys.github.io` dans les *Authorized JavaScript origins* du client OAuth.

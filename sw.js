@@ -1,7 +1,7 @@
 // Service worker: caches only the app shell so the app installs and opens offline.
 // Google sign-in and Drive API calls are never cached — they always go to the network.
-const CACHE = 'relance-scan-v1';
-const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'relance-scan-v2';
+const SHELL = ['./', 'index.html', 'styles.css', 'i18n.js', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=> c.addAll(SHELL)).then(()=> self.skipWaiting()));
