@@ -560,6 +560,9 @@ body.impersonating .avatar-btn{background:var(--warn-soft);color:var(--warn);bor
 .menu-mini-btn:hover{background:var(--surface-2);color:var(--ink);}
 
 .view-as-banner{top:74px;}
+body.signed-in.on-home .topbar{display:none;}
+body.signed-in.on-home .view-as-banner{top:8px;}
+.topbar .page-tab:focus:not(:focus-visible){outline:none;}
 
 @media (max-width: 900px){
   .topbar{flex-wrap:wrap;row-gap:4px;}

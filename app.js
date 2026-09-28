@@ -131,6 +131,8 @@
     activePage = page;
     if(!deferredTeamPage){ try{ localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, page); }catch(e){ /* full/unavailable — ignore */ } }
     els.pageHome.hidden = page !== 'home';
+    // Accueil : pas de barre du haut (seulement les cartes) — elle revient sur toutes les autres pages.
+    document.body.classList.toggle('on-home', page === 'home');
     els.tabHomeBtn.classList.toggle('active', page === 'home');
     els.pageDashboard.hidden = page !== 'dashboard';
     els.pageTrends.hidden = page !== 'trends';
@@ -2615,6 +2617,7 @@
     els.pageTabsRow.hidden = true;
     document.getElementById('topbarTools').hidden = true;
     document.getElementById('gateLangSwitch').hidden = false;
+    document.body.classList.remove('signed-in');
     closeMenus();
   }
   function showApp(){
@@ -2623,6 +2626,7 @@
     els.pageTabsRow.hidden = false;
     document.getElementById('topbarTools').hidden = false;
     document.getElementById('gateLangSwitch').hidden = true;
+    document.body.classList.add('signed-in');
     renderUserChip();
   }
 
