@@ -1,6 +1,6 @@
 {
-  "name": "Suivi Relance Scan — Collab",
-  "short_name": "Relance Scan",
+  "name": "PaWNS Tracker",
+  "short_name": "PaWNS Tracker",
   "description": "Vue collective des relances et scans de l'équipe.",
   "start_url": "./",
   "scope": "./",
