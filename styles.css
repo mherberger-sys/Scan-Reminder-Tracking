@@ -184,7 +184,7 @@ button.btn-small{padding:5px 10px;font-size:.72rem;}
 .home-hero{max-width:620px;display:flex;flex-direction:column;gap:12px;align-items:center;}
 .home-title{font-size:2.1rem;font-weight:800;margin:0;letter-spacing:-.02em;text-wrap:balance;}
 .home-sub{color:var(--muted);font-size:.95rem;margin:0;max-width:56ch;}
-.home-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;width:100%;max-width:820px;}
+.home-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;width:100%;max-width:900px;}
 .home-card{
   display:flex;flex-direction:column;align-items:flex-start;gap:9px;text-align:left;
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
@@ -398,6 +398,7 @@ a.link:hover{text-decoration:underline;}
 
 /* ===================== App unifiée : connexion, profil, rôles, équipe ===================== */
 [hidden]{display:none !important;}
+html.restoring #authGate{display:none !important;}
 .app-shell{display:flex;flex-direction:column;gap:22px;}
 
 .gate{display:flex;flex-direction:column;align-items:center;gap:18px;padding:18px 0 8px;}

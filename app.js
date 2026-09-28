@@ -96,15 +96,17 @@
     docsPanel: document.getElementById('docsPanel'), tabDocsBtn: document.getElementById('tabDocsBtn'),
     pageFiles: document.getElementById('pageFiles'), tabFilesBtn: document.getElementById('tabFilesBtn'),
     pageTeam: document.getElementById('pageTeam'), tabTeamBtn: document.getElementById('tabTeamBtn'),
+    pageHome: document.getElementById('pageHome'), tabHomeBtn: document.getElementById('tabHomeBtn'),
+    homeTeamBtn: document.getElementById('homeTeamBtn'), homeGreeting: document.getElementById('homeGreeting'),
     importedFilesBody: document.getElementById('importedFilesBody'),
     trendsChannelFilter: document.getElementById('trendsChannelFilter'),
   };
 
   const ACTIVE_PAGE_STORAGE_KEY = 'src_active_page_v1';
-  const PAGES = ['dashboard','files','trends','team','docs'];
+  const PAGES = ['home','dashboard','files','trends','team','docs'];
 
-  // Un vrai rechargement (F5/Cmd+R) restaure l'état mémorisé (page active, fiche docteur...) ;
-  // une ouverture fraîche de l'app repart toujours de « Mon suivi ».
+  // Un vrai rechargement (F5/Cmd+R ou bouton « Recharger ») restaure l'état mémorisé (page active,
+  // fiche docteur...) ; une ouverture fraîche de l'app repart toujours de l'Accueil.
   function isReloadNavigation(){
     try{
       const navEntries = performance.getEntriesByType && performance.getEntriesByType('navigation');
@@ -114,19 +116,32 @@
     return false;
   }
 
-  let activePage = 'dashboard';
+  let activePage = 'home';
+  // Page Équipe demandée avant que le rôle soit connu (rechargement pendant la connexion) :
+  // on l'affiche dès que le rôle confirme l'accès — voir applyRoleUi().
+  let deferredTeamPage = false;
   function setActivePage(page){
     // L'onglet Équipe n'existe que pour les managers et admins : un CX qui y atterrirait (page
-    // mémorisée d'une session précédente avec un autre rôle) est renvoyé sur Mon suivi.
-    if(page === 'team' && !canSeeTeamTab()) page = 'dashboard';
+    // mémorisée d'une session précédente avec un autre rôle) est renvoyé sur le Dashboard.
+    if(page === 'team' && !canSeeTeamTab()){
+      if(!poolLoaded) deferredTeamPage = true;
+      page = 'dashboard';
+    } else if(page !== 'dashboard'){
+      deferredTeamPage = false;
+    }
     activePage = page;
-    try{ localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, page); }catch(e){ /* full/unavailable — ignore */ }
+    if(!deferredTeamPage){ try{ localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, page); }catch(e){ /* full/unavailable — ignore */ } }
+    // Accueil : comme dans l'outil individuel, ni titre ni onglets — seulement les cartes.
+    els.headerBrandTitle.hidden = page === 'home';
+    els.pageTabsRow.hidden = page === 'home';
+    els.pageHome.hidden = page !== 'home';
+    els.tabHomeBtn.classList.toggle('active', page === 'home');
     els.pageDashboard.hidden = page !== 'dashboard';
     els.pageTrends.hidden = page !== 'trends';
     els.docsPanel.hidden = page !== 'docs';
     els.pageFiles.hidden = page !== 'files';
     els.pageTeam.hidden = page !== 'team';
-    els.doctorScopeBanner.style.display = state.doctorScope ? 'flex' : 'none';
+    els.doctorScopeBanner.style.display = (state.doctorScope && page !== 'home') ? 'flex' : 'none';
     els.tabDashboardBtn.classList.toggle('active', page === 'dashboard' || page === 'files');
     els.tabTrendsBtn.classList.toggle('active', page === 'trends');
     els.tabTeamBtn.classList.toggle('active', page === 'team');
@@ -134,6 +149,11 @@
     els.tabFilesBtn.classList.toggle('active', page === 'files');
     if(page === 'team') renderTeamPage();
   }
+  els.tabHomeBtn.addEventListener('click', ()=> setActivePage('home'));
+  document.getElementById('homeDashboardBtn').addEventListener('click', ()=> setActivePage('dashboard'));
+  document.getElementById('homeTrendsBtn').addEventListener('click', ()=> setActivePage('trends'));
+  els.homeTeamBtn.addEventListener('click', ()=> setActivePage('team'));
+  document.getElementById('homeDocsBtn').addEventListener('click', ()=> setActivePage('docs'));
   els.tabDashboardBtn.addEventListener('click', ()=> setActivePage('dashboard'));
   els.tabTrendsBtn.addEventListener('click', ()=> setActivePage('trends'));
   els.tabTeamBtn.addEventListener('click', ()=> setActivePage('team'));
@@ -152,7 +172,7 @@
         if(PAGES.includes(savedPage)) return savedPage;
       }
     }catch(e){ /* full/unavailable — ignore */ }
-    return 'dashboard';
+    return 'home';
   }
 
   els.toggleColumnsBtn.addEventListener('click', ()=>{
@@ -2077,7 +2097,7 @@
     document.body.classList.toggle('doctor-scoped', !!state.doctorScope);
     els.doctorFilter.disabled = !!state.doctorScope;
     if(state.doctorScope) els.doctorFilter.value = state.doctorScope;
-    els.doctorScopeBanner.style.display = state.doctorScope ? 'flex' : 'none';
+    els.doctorScopeBanner.style.display = (state.doctorScope && activePage !== 'home') ? 'flex' : 'none';
     if(state.doctorScope) els.doctorScopeBannerLabel.textContent = i18n('doctorScopeBannerLabel', {doctor: state.doctorScope});
 
     const rows = getFiltered();
@@ -2643,6 +2663,7 @@
     try{ if(accessToken && window.google && google.accounts) google.accounts.oauth2.revoke(accessToken, ()=>{}); }catch(e){}
     resetSessionState();
     clearSession();
+    clearProfileCache();
     showGate();
     setAuthStatus('authSignedOut', {}, null);
     renderHistory();
@@ -2665,6 +2686,14 @@
   function enterConnectedState(){
     setAuthStatus('authConnected', { name: currentUser.name, email: currentUser.email }, 'ok');
     authEls.authSection.classList.add('done');
+    const cached = loadProfileCache(currentUser.email);
+    if(cached){
+      myNickname = cached.name;
+      myTeam = cached.team;
+      teamDirectory.members[currentUser.email] = { name: cached.name, team: cached.team, role: cached.role };
+      finishProfile();
+      return;
+    }
     ensureOnboardingAndProceed();
   }
 
@@ -2814,6 +2843,7 @@
   function finishProfile(){
     const wasEditing = profileEditing;
     profileEditing = false;
+    saveProfileCache();
     authEls.profileGateSection.hidden = true;
     authEls.authSection.hidden = false;
     showApp();
@@ -2857,10 +2887,34 @@
   // Tout ce qui dépend du rôle, recalculé à la connexion et après un changement de rôle/équipe.
   function applyRoleUi(){
     els.tabTeamBtn.hidden = !canSeeTeamTab();
+    els.homeTeamBtn.hidden = !canSeeTeamTab();
     authEls.manageTeamsSection.hidden = !isAdmin();
     renderUserChip();
+    renderHomeGreeting();
     if(activePage === 'team' && !canSeeTeamTab()) setActivePage('dashboard');
+    if(deferredTeamPage && canSeeTeamTab()){ deferredTeamPage = false; setActivePage('team'); }
+    else if(poolLoaded) deferredTeamPage = false;
   }
+  function renderHomeGreeting(){
+    els.homeGreeting.textContent = currentUser ? i18n('homeGreeting', {name: myNickname || currentUser.name, team: myTeam || '—', role: roleLabel(myRole())}) : '';
+  }
+
+  // Profil mis en cache sur l'appareil : au rechargement (session Google encore valide), l'app
+  // s'affiche tout de suite sur la page en cours au lieu de repasser par l'écran de connexion ;
+  // l'annuaire réel est relu en arrière-plan juste après.
+  const PROFILE_CACHE_KEY = 'src_profile_cache_v1';
+  function saveProfileCache(){
+    if(!currentUser || !myNickname || !myTeam) return;
+    const m = teamDirectory.members[currentUser.email] || {};
+    try{ localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ email: currentUser.email, name: myNickname, team: myTeam, role: m.role || '' })); }catch(e){}
+  }
+  function loadProfileCache(email){
+    try{
+      const c = JSON.parse(localStorage.getItem(PROFILE_CACHE_KEY) || 'null');
+      return c && c.email === email && c.name && c.team ? c : null;
+    }catch(e){ return null; }
+  }
+  function clearProfileCache(){ try{ localStorage.removeItem(PROFILE_CACHE_KEY); }catch(e){} }
 
   // ---------------------------- Chargement des données (Drive) ----------------------------
   async function listFolderFiles(){
@@ -2952,6 +3006,8 @@
       const me = currentUser.email;
       const existing = teamDirectory.members[me];
       if(existing && existing.team && teamDirectory.teams.includes(existing.team)) myTeam = existing.team;
+      if(existing && existing.name && existing.name.trim()) myNickname = existing.name.trim();
+      saveProfileCache();
       pool = data;
       myHistoryFileId = (pool.files.find(f=> f.kind === 'history' && f.ownerEmail === me) || {}).id || null;
       myLegacyFileIds = pool.files.filter(f=> f.kind === 'export' && f.ownerEmail === me).map(f=> f.id);
@@ -3350,6 +3406,7 @@
       authEls.teamGateSelect.value = prev;
     }
     renderUserChip();
+    renderHomeGreeting();
     renderSyncStatus();
     if(activePage === 'team') renderTeamPage();
   }
@@ -3454,7 +3511,6 @@
   els.langBtnEn.addEventListener('click', ()=> setLang('en'));
   els.langBtnFr.addEventListener('click', ()=> setLang('fr'));
   applyI18n();
-  setActivePage(initialPageFromStorage());
 
   // Session Google : restaurée tout de suite si un jeton encore valide est en mémoire (sans
   // attendre la librairie Google), sinon l'écran de connexion reste affiché.
@@ -3467,5 +3523,7 @@
       enterConnectedState();
     }
   }
+  setActivePage(initialPageFromStorage());
+  document.documentElement.classList.remove('restoring');
   if(window.__gsiReady) window.initGoogle();
 })();
