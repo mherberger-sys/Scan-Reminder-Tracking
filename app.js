@@ -2648,6 +2648,20 @@
     renderHistory();
   });
 
+  // Bouton « Recharger » : indispensable dans l'app installée (fenêtre sans barre d'adresse ni
+  // bouton de rechargement). Demande d'abord au service worker de vérifier une nouvelle version,
+  // puis recharge — le service worker étant en « réseau d'abord », les fichiers à jour sont servis.
+  document.getElementById('reloadAppBtn').addEventListener('click', async ()=>{
+    if((syncDirty || syncInFlight) && !confirm(i18n('confirmReloadUnsaved'))) return;
+    syncDirty = false;
+    syncInFlight = false;
+    try{
+      const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      if(reg) await reg.update();
+    }catch(e){ /* pas de service worker (navigateur, mode privé) — simple rechargement */ }
+    location.reload();
+  });
+
   function enterConnectedState(){
     setAuthStatus('authConnected', { name: currentUser.name, email: currentUser.email }, 'ok');
     authEls.authSection.classList.add('done');
