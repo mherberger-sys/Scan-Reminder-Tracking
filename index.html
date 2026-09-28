@@ -30,30 +30,87 @@ try{
 <body>
 
 <div class="wrap">
-  <header>
-    <div class="header-row">
+  <header class="topbar" id="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-logo" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-8"/></svg></span>
       <span class="brand-title" id="headerBrandTitle" data-i18n="brandTitle">Suivi Relance Scan</span>
-      <div class="lang-switch" id="langSwitch" role="group" aria-label="Language">
-        <button type="button" class="lang-btn" id="langBtnEn" data-lang="en">EN</button>
-        <button type="button" class="lang-btn" id="langBtnFr" data-lang="fr">FR</button>
-      </div>
-      <div class="header-links">
-        <a class="collab-link-btn custom-link-btn" id="customLink0" href="#" target="_blank" rel="noopener" data-i18n-title="customLinkEditTitle" title="Clic droit pour modifier">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3h4v4M21 3l-9 9M8 21H4v-4M4 21l9-9"/></svg>
-          <span id="customLink0Label">Ajouter un lien</span>
-        </a>
-        <a class="collab-link-btn custom-link-btn" id="customLink1" href="#" target="_blank" rel="noopener" data-i18n-title="customLinkEditTitle" title="Clic droit pour modifier">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3h4v4M21 3l-9 9M8 21H4v-4M4 21l9-9"/></svg>
-          <span id="customLink1Label">Ajouter un lien</span>
-        </a>
-        <div class="user-chip" id="userChip" hidden>
-          <div class="user-chip-text">
-            <span class="user-chip-name"><span id="userChipName"></span> <span class="role-badge" id="userChipRole"></span></span>
-            <span class="user-chip-meta" id="userChipMeta"></span>
+    </div>
+
+    <nav class="page-tabs" id="pageTabsRow" hidden>
+      <button type="button" class="page-tab" id="tabHomeBtn" data-i18n="tabHome">Accueil</button>
+      <div class="page-tab-group">
+        <button type="button" class="page-tab" id="tabDashboardBtn"><span data-i18n="tabMySuivi">Dashboard</span><span class="page-tab-caret">▾</span></button>
+        <div class="page-tab-dropdown">
+          <div class="page-tab-dropdown-inner">
+            <button type="button" class="page-tab-dropdown-item" id="tabFilesBtn" data-i18n="tabFiles">Fichiers importés</button>
           </div>
-          <button type="button" class="link-btn" id="editProfileBtn" data-i18n="editProfileBtn">Modifier</button>
-          <button type="button" class="link-btn" id="signOutBtn" data-i18n="signOutBtn">Déconnexion</button>
-          <select id="viewAsSelect" class="inline-select view-as-select" hidden data-i18n-title="viewAsTitle" title="Voir l'app comme un collègue (lecture seule)"></select>
+        </div>
+      </div>
+      <button type="button" class="page-tab" id="tabTrendsBtn" data-i18n="tabTrends">Tendances</button>
+      <button type="button" class="page-tab" id="tabTeamBtn" hidden data-i18n="tabTeam">Équipe</button>
+      <button type="button" class="page-tab" id="tabDocsBtn" data-i18n="tabDocs">Documentation</button>
+    </nav>
+
+    <div class="topbar-right">
+      <!-- Avant connexion : seul le choix de langue est proposé ici. -->
+      <div class="lang-switch" id="gateLangSwitch" role="group" aria-label="Language">
+        <button type="button" class="lang-btn" data-lang="en">EN</button>
+        <button type="button" class="lang-btn" data-lang="fr">FR</button>
+      </div>
+
+      <div class="topbar-tools" id="topbarTools" hidden>
+        <div class="menu-wrap">
+          <button type="button" class="topbar-pill" data-menu-toggle="linksMenu" aria-haspopup="true" aria-expanded="false">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3h4v4M21 3l-9 9M8 21H4v-4M4 21l9-9"/></svg>
+            <span data-i18n="linksMenuBtn">Liens</span><span class="page-tab-caret">▾</span>
+          </button>
+          <div class="menu" id="linksMenu" hidden>
+            <p class="menu-caption" data-i18n="linksMenuTitle">Mes liens</p>
+            <div id="linksMenuItems"></div>
+            <hr>
+            <button type="button" class="menu-item" id="addLinkBtn"><span class="menu-icon">＋</span><span data-i18n="addLinkLabel">Ajouter un lien</span></button>
+            <p class="menu-hint" data-i18n="linksMenuHint">Tes liens restent sur cet appareil.</p>
+          </div>
+        </div>
+        <span class="topbar-sep"></span>
+        <button type="button" class="icon-btn" id="reloadAppBtn" data-i18n-title="reloadAppTitle" title="Actualiser l'app (et récupérer la dernière version)" aria-label="Actualiser">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="privacyModeToggle" aria-pressed="false" data-i18n-title="privacyModeTitle" title="Floute toutes les données à l'écran, pour présenter l'outil sans rien révéler." aria-label="Mode confidentialité">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+
+        <div class="menu-wrap" id="userChip">
+          <button type="button" class="avatar-btn" data-menu-toggle="userMenu" aria-haspopup="true" aria-expanded="false" id="avatarBtn">
+            <span id="avatarInitial">?</span>
+          </button>
+          <div class="menu menu-right" id="userMenu" hidden>
+            <div class="menu-head">
+              <div class="menu-name"><span id="userChipName"></span><span class="role-badge" id="userChipRole"></span></div>
+              <div class="menu-meta" id="userChipMeta"></div>
+            </div>
+            <label class="menu-item menu-item-select" id="viewAsRow" hidden>
+              <span class="menu-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <select id="viewAsSelect" class="inline-select" data-i18n-title="viewAsTitle" title="Voir l'app comme un collègue (lecture seule)"></select>
+            </label>
+            <div class="menu-item menu-item-static">
+              <span class="menu-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg></span>
+              <span data-i18n="languageLabel">Langue</span>
+              <div class="lang-switch" role="group" aria-label="Language">
+                <button type="button" class="lang-btn" data-lang="en">EN</button>
+                <button type="button" class="lang-btn" data-lang="fr">FR</button>
+              </div>
+            </div>
+            <button type="button" class="menu-item" id="editProfileBtn">
+              <span class="menu-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+              <span data-i18n="editProfileBtn">Modifier mon profil</span>
+            </button>
+            <hr>
+            <button type="button" class="menu-item menu-item-danger" id="signOutBtn">
+              <span class="menu-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg></span>
+              <span data-i18n="signOutBtn">Déconnexion</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -113,32 +170,6 @@ try{
   </div>
 
   <div id="appShell" class="app-shell" hidden>
-  <div class="page-tabs-row" id="pageTabsRow">
-    <nav class="page-tabs">
-      <button type="button" class="page-tab" id="tabHomeBtn" data-i18n="tabHome">Accueil</button>
-      <div class="page-tab-group">
-        <button type="button" class="page-tab" id="tabDashboardBtn"><span data-i18n="tabMySuivi">Dashboard</span> <span class="page-tab-caret">▾</span></button>
-        <div class="page-tab-dropdown">
-          <div class="page-tab-dropdown-inner">
-            <button type="button" class="page-tab-dropdown-item" id="tabFilesBtn" data-i18n="tabFiles">Fichiers importés</button>
-          </div>
-        </div>
-      </div>
-      <button type="button" class="page-tab" id="tabTrendsBtn" data-i18n="tabTrends">Tendances</button>
-      <button type="button" class="page-tab" id="tabTeamBtn" hidden data-i18n="tabTeam">Équipe</button>
-      <button type="button" class="page-tab" id="tabDocsBtn" data-i18n="tabDocs">Documentation</button>
-    </nav>
-    <div class="page-tabs-actions">
-      <button type="button" class="privacy-toggle" id="reloadAppBtn" data-i18n-title="reloadAppTitle" title="Actualiser l'app (et récupérer la dernière version)">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
-        <span data-i18n="reloadAppBtn">Actualiser</span>
-      </button>
-    <button type="button" class="privacy-toggle" id="privacyModeToggle" aria-pressed="false" data-i18n-title="privacyModeTitle" title="Floute toutes les données à l'écran, pour présenter l'outil sans rien révéler.">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-      <span data-i18n="privacyModeLabel">Mode confidentialité</span>
-    </button>
-    </div>
-  </div>
 
   <div id="pageHome" class="page-home" hidden>
     <div class="home-hero">

@@ -88,7 +88,6 @@
     historyTableScroll: document.getElementById('historyTableScroll'), expandHistoryBtn: document.getElementById('expandHistoryBtn'),
     resultsTable: document.getElementById('resultsTable'), toggleColumnsBtn: document.getElementById('toggleColumnsBtn'),
     headerBrandTitle: document.getElementById('headerBrandTitle'),
-    langBtnEn: document.getElementById('langBtnEn'), langBtnFr: document.getElementById('langBtnFr'),
     pageTabsRow: document.getElementById('pageTabsRow'),
     pageDashboard: document.getElementById('pageDashboard'), pageTrends: document.getElementById('pageTrends'),
     chartsPanel: document.getElementById('chartsPanel'),
@@ -131,9 +130,6 @@
     }
     activePage = page;
     if(!deferredTeamPage){ try{ localStorage.setItem(ACTIVE_PAGE_STORAGE_KEY, page); }catch(e){ /* full/unavailable — ignore */ } }
-    // Accueil : comme dans l'outil individuel, ni titre ni onglets — seulement les cartes.
-    els.headerBrandTitle.hidden = page === 'home';
-    els.pageTabsRow.hidden = page === 'home';
     els.pageHome.hidden = page !== 'home';
     els.tabHomeBtn.classList.toggle('active', page === 'home');
     els.pageDashboard.hidden = page !== 'dashboard';
@@ -197,39 +193,38 @@
   const HISTORY_MAX_ENTRIES = 150;
   const CUSTOM_LINKS_STORAGE_KEY = 'src_custom_tool_links_v1';
 
+  // Liens personnels (propres à chaque personne, gardés sur l'appareil) : rangés dans le menu
+  // « Liens ▾ » de la barre du haut. Jusqu'à 8 liens.
+  const CUSTOM_LINKS_MAX = 8;
   function loadCustomLinks(){
     try{
-      const raw = localStorage.getItem(CUSTOM_LINKS_STORAGE_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return [arr[0] || null, arr[1] || null];
-    }catch(e){ return [null, null]; }
+      const arr = JSON.parse(localStorage.getItem(CUSTOM_LINKS_STORAGE_KEY) || '[]');
+      return Array.isArray(arr) ? arr.filter(l=> l && l.url && l.name).slice(0, CUSTOM_LINKS_MAX) : [];
+    }catch(e){ return []; }
   }
   let customLinks = loadCustomLinks();
   function saveCustomLinks(){
     try{ localStorage.setItem(CUSTOM_LINKS_STORAGE_KEY, JSON.stringify(customLinks)); }catch(e){ /* full/unavailable — ignore */ }
   }
   function renderCustomLinks(){
-    customLinks.forEach((link, i)=>{
-      const a = document.getElementById('customLink' + i);
-      const label = document.getElementById('customLink' + i + 'Label');
-      if(link && link.url){
-        a.href = link.url;
-        a.classList.remove('custom-link-empty');
-        label.textContent = link.name;
-      } else {
-        a.href = '#';
-        a.classList.add('custom-link-empty');
-        label.textContent = i18n('addLinkLabel');
-      }
-    });
+    const box = document.getElementById('linksMenuItems');
+    box.innerHTML = customLinks.length
+      ? customLinks.map((link, i)=> `<div class="menu-link-row">
+          <a class="menu-item" href="${escapeAttr(link.url)}" target="_blank" rel="noopener"><span class="menu-icon">↗</span><span>${escapeHtml(link.name)}</span></a>
+          <button type="button" class="menu-mini-btn" data-edit-link="${i}" title="${escapeAttr(i18n('editLinkTitle'))}" aria-label="${escapeAttr(i18n('editLinkTitle'))}">✎</button>
+        </div>`).join('')
+      : `<p class="menu-hint" style="margin:4px 12px 6px;">${escapeHtml(i18n('noLinksYet'))}</p>`;
+    document.getElementById('addLinkBtn').hidden = customLinks.length >= CUSTOM_LINKS_MAX;
   }
+  // i = index d'un lien existant à modifier, ou customLinks.length pour en ajouter un.
+  // Un nom vidé supprime le lien.
   function configureCustomLink(i){
     const current = customLinks[i] || { name:'', url:'' };
-    const name = prompt(i18n('promptToolName'), current.name);
+    const name = prompt(i18n(customLinks[i] ? 'promptToolNameEdit' : 'promptToolName'), current.name);
     if(name === null) return;
     const trimmedName = name.trim();
     if(!trimmedName){
-      customLinks[i] = null;
+      if(customLinks[i]) customLinks.splice(i, 1);
       saveCustomLinks();
       renderCustomLinks();
       return;
@@ -2612,15 +2607,22 @@
   }
   function clearSession(){ try{ localStorage.removeItem(TOKEN_STORAGE_KEY); }catch(e){} }
 
+  // Avant connexion, la barre du haut ne montre que le nom de l'app et la langue ; une fois
+  // connecté : onglets, Liens, Actualiser, Confidentialité et le menu de l'avatar.
   function showGate(){
     authEls.authGate.hidden = false;
     authEls.appShell.hidden = true;
-    authEls.userChip.hidden = true;
+    els.pageTabsRow.hidden = true;
+    document.getElementById('topbarTools').hidden = true;
+    document.getElementById('gateLangSwitch').hidden = false;
+    closeMenus();
   }
   function showApp(){
     authEls.authGate.hidden = true;
     authEls.appShell.hidden = false;
-    authEls.userChip.hidden = false;
+    els.pageTabsRow.hidden = false;
+    document.getElementById('topbarTools').hidden = false;
+    document.getElementById('gateLangSwitch').hidden = true;
     renderUserChip();
   }
 
@@ -2907,6 +2909,9 @@
     authEls.userChipMeta.textContent = (myTeam || '—') + ' · ' + effectiveEmail();
     authEls.userChipRole.textContent = roleLabel(myRole());
     authEls.userChipRole.className = 'role-badge role-' + myRole();
+    const initial = (myNickname || currentUser.name || '?').trim().charAt(0).toUpperCase() || '?';
+    document.getElementById('avatarInitial').textContent = initial;
+    document.getElementById('avatarBtn').title = (myNickname || currentUser.name) + ' · ' + roleLabel(myRole());
     authEls.editProfileBtn.hidden = !!viewAs;
     renderViewAsUi();
   }
@@ -2927,7 +2932,7 @@
   }
   function renderViewAsUi(){
     const canUse = realIsAdmin() && poolLoaded && !viewAs;
-    viewAsEls.select.hidden = !canUse;
+    document.getElementById('viewAsRow').hidden = !canUse;
     if(canUse){
       viewAsEls.select.innerHTML = `<option value="">${escapeHtml(i18n('viewAsPlaceholder'))}</option>` +
         viewAsCandidates().map(c=> `<option value="${escapeAttr(c.email)}">${escapeHtml(c.name + ' — ' + (c.team || i18n('scopeUnassigned')) + ' · ' + roleLabel(c.role))}</option>`).join('');
@@ -2985,7 +2990,7 @@
     if(!silent) showToast(i18n('toastViewAsOff'));
     return was;
   }
-  viewAsEls.select.addEventListener('change', ()=>{ if(viewAsEls.select.value) enterViewAs(viewAsEls.select.value); });
+  viewAsEls.select.addEventListener('change', ()=>{ if(viewAsEls.select.value){ closeMenus(); enterViewAs(viewAsEls.select.value); } });
   viewAsEls.exitBtn.addEventListener('click', ()=> exitViewAs());
 
   // Tout ce qui dépend du rôle, recalculé à la connexion et après un changement de rôle/équipe.
@@ -3552,20 +3557,33 @@
     }
   }catch(e){ /* full/unavailable — ignore */ }
 
-  [0, 1].forEach(i=>{
-    const a = document.getElementById('customLink' + i);
-    a.addEventListener('click', e=>{
-      if(!customLinks[i] || !customLinks[i].url){
-        e.preventDefault();
-        configureCustomLink(i);
-      }
-    });
-    a.addEventListener('contextmenu', e=>{
-      e.preventDefault();
-      configureCustomLink(i);
-    });
+  document.getElementById('addLinkBtn').addEventListener('click', ()=>{ closeMenus(); configureCustomLink(customLinks.length); });
+  document.getElementById('linksMenuItems').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-edit-link]');
+    if(btn){ e.preventDefault(); closeMenus(); configureCustomLink(parseInt(btn.getAttribute('data-edit-link'), 10)); return; }
+    if(e.target.closest('a')) closeMenus();
   });
   renderCustomLinks();
+
+  // Menus de la barre du haut (Liens, avatar) : un clic sur le bouton ouvre/ferme, un clic
+  // ailleurs ou Échap ferme. Les éléments d'action ferment aussi le menu.
+  function closeMenus(except){
+    document.querySelectorAll('.menu').forEach(m=>{ if(m !== except) m.hidden = true; });
+    document.querySelectorAll('[data-menu-toggle]').forEach(b=>{ if(!except || b.getAttribute('data-menu-toggle') !== except.id) b.setAttribute('aria-expanded', 'false'); });
+  }
+  document.querySelectorAll('[data-menu-toggle]').forEach(btn=>{
+    btn.addEventListener('click', e=>{
+      e.stopPropagation();
+      const menu = document.getElementById(btn.getAttribute('data-menu-toggle'));
+      const willOpen = menu.hidden;
+      closeMenus(willOpen ? menu : null);
+      menu.hidden = !willOpen;
+      btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    });
+  });
+  document.addEventListener('click', e=>{ if(!e.target.closest('.menu')) closeMenus(); });
+  document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeMenus(); });
+  ['editProfileBtn', 'signOutBtn'].forEach(id=> document.getElementById(id).addEventListener('click', ()=> closeMenus()));
 
   // === i18n cascade: mirrors collab's applyI18n(), adapted to this tool's own render
   //     functions (renderHistory() already triggers renderCharts() internally). ===
@@ -3597,8 +3615,7 @@
     document.querySelectorAll('[data-i18n-html]').forEach(el=>{ el.innerHTML = i18n(el.getAttribute('data-i18n-html')); });
     document.querySelectorAll('[data-i18n-title]').forEach(el=>{ el.title = i18n(el.getAttribute('data-i18n-title')); });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ el.placeholder = i18n(el.getAttribute('data-i18n-placeholder')); });
-    els.langBtnEn.classList.toggle('active', currentLang === 'en');
-    els.langBtnFr.classList.toggle('active', currentLang === 'fr');
+    document.querySelectorAll('.lang-btn[data-lang]').forEach(b=> b.classList.toggle('active', b.getAttribute('data-lang') === currentLang));
     renderCustomLinks();
     updateRunButton();
     refreshToggleButtonLabels();
@@ -3620,8 +3637,7 @@
     saveLang(lang);
     applyI18n();
   }
-  els.langBtnEn.addEventListener('click', ()=> setLang('en'));
-  els.langBtnFr.addEventListener('click', ()=> setLang('fr'));
+  document.querySelectorAll('.lang-btn[data-lang]').forEach(b=> b.addEventListener('click', e=>{ e.stopPropagation(); setLang(b.getAttribute('data-lang')); }));
   applyI18n();
 
   // Session Google : restaurée tout de suite si un jeton encore valide est en mémoire (sans
