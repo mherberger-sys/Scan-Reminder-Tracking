@@ -1,6 +1,6 @@
 // Service worker: caches only the app shell so the app installs and opens offline.
 // Google sign-in and Drive API calls are never cached — they always go to the network.
-const CACHE = 'relance-scan-v2';
+const CACHE = 'relance-scan-v3';
 const SHELL = ['./', 'index.html', 'styles.css', 'i18n.js', 'app.js', 'manifest.webmanifest', 'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
@@ -20,7 +20,9 @@ self.addEventListener('fetch', e=>{
   const url = new URL(e.request.url);
   if(e.request.method !== 'GET' || url.origin !== self.location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    // cache:'no-cache' : GitHub Pages sert ses fichiers avec ~10 min de cache navigateur ; on
+    // revalide à chaque fois auprès du serveur pour qu'« Actualiser » donne la dernière version.
+    fetch(e.request, { cache: 'no-cache' })
       .then(res=>{
         const copy = res.clone();
         caches.open(CACHE).then(c=> c.put(e.request, copy));

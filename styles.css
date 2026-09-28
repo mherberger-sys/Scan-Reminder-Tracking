@@ -560,9 +560,15 @@ body.impersonating .avatar-btn{background:var(--warn-soft);color:var(--warn);bor
 .menu-mini-btn:hover{background:var(--surface-2);color:var(--ink);}
 
 .view-as-banner{top:74px;}
-body.signed-in.on-home .topbar{display:none;}
-body.signed-in.on-home .view-as-banner{top:8px;}
-.topbar .page-tab:focus:not(:focus-visible){outline:none;}
+/* Accueil : la barre se réduit à un petit encart en haut à droite (Liens, Actualiser,
+   Confidentialité, compte) — ni titre ni onglets. */
+body.signed-in.on-home .topbar{width:fit-content;margin-left:auto;padding:6px;gap:0;}
+body.signed-in.on-home .topbar-brand,
+body.signed-in.on-home #pageTabsRow{display:none !important;}
+body.signed-in.on-home .topbar-right{margin-left:0;}
+body.signed-in.on-home .view-as-banner{top:66px;}
+/* Pas de contour de focus au clic souris (gardé pour la navigation au clavier). */
+.topbar button:focus:not(:focus-visible), .home-card:focus:not(:focus-visible){outline:none;}
 
 @media (max-width: 900px){
   .topbar{flex-wrap:wrap;row-gap:4px;}

@@ -2708,7 +2708,19 @@
     syncInFlight = false;
     try{
       const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
-      if(reg) await reg.update();
+      if(reg){
+        await reg.update();
+        // Nouvelle version trouvée : on attend qu'elle soit active (3 s max) pour qu'un seul clic
+        // suffise à l'afficher.
+        const incoming = reg.installing || reg.waiting;
+        if(incoming){
+          await new Promise(resolve=>{
+            const done = ()=> resolve();
+            setTimeout(done, 3000);
+            incoming.addEventListener('statechange', ()=>{ if(incoming.state === 'activated' || incoming.state === 'redundant') done(); });
+          });
+        }
+      }
     }catch(e){ /* pas de service worker (navigateur, mode privé) — simple rechargement */ }
     location.reload();
   });
