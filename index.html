@@ -53,10 +53,17 @@ try{
           </div>
           <button type="button" class="link-btn" id="editProfileBtn" data-i18n="editProfileBtn">Modifier</button>
           <button type="button" class="link-btn" id="signOutBtn" data-i18n="signOutBtn">Déconnexion</button>
+          <select id="viewAsSelect" class="inline-select view-as-select" hidden data-i18n-title="viewAsTitle" title="Voir l'app comme un collègue (lecture seule)"></select>
         </div>
       </div>
     </div>
   </header>
+
+  <div id="viewAsBanner" class="banner view-as-banner" hidden>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+    <span class="view-as-text"><strong id="viewAsBannerLabel"></strong><span data-i18n="viewAsReadOnlyNote">Lecture seule — rien n'est enregistré en son nom. Les fichiers en cours dans le Dashboard restent les tiens.</span></span>
+    <button class="primary btn-small" id="exitViewAsBtn" data-i18n="exitViewAsBtn">Revenir à ma vue</button>
+  </div>
 
   <!-- Connexion + profil : affichés tant que la personne n'est pas connectée, et pour modifier son profil. -->
   <div id="authGate" class="gate">

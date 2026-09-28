@@ -757,6 +757,7 @@
   els.aircallFreezeTarget.addEventListener('change', renderAircallBreakdown);
 
   els.aircallFreezeBtn.addEventListener('click', ()=>{
+    if(readOnlyBlocked()) return;
     if(!state.aircallCalls){ showToast(i18n('toastLoadAircallFirst')); return; }
     const targetId = els.aircallFreezeTarget.value;
     const entry = state.history.find(e=>String(e.id) === targetId);
@@ -1030,6 +1031,7 @@
   }
 
   async function importHistoryFromJson(file){
+    if(readOnlyBlocked()) return;
     if(!poolLoaded){ showToast(i18n('toastWaitLoading')); return; }
     let payload;
     try{
@@ -1176,6 +1178,7 @@
   }
 
   function addCurrentToHistory(){
+    if(readOnlyBlocked()) return;
     if(!poolLoaded){ showToast(i18n('toastWaitLoading')); return; }
     if(state.demo){ showToast(i18n('toastGenerateFirst')); return; }
     if(state.historyView){ showToast(i18n('toastReturnToCurrentData')); return; }
@@ -1226,6 +1229,7 @@
   }
 
   function deleteHistoryEntry(id){
+    if(readOnlyBlocked()) return;
     const removed = state.history.find(e=>e.id === id);
     if(!removed || !confirm(i18n('confirmDeleteEntry', {label: removed.label}))) return;
     state.history = state.history.filter(e=>e.id !== id);
@@ -1236,6 +1240,7 @@
   }
 
   function renameHistoryEntry(id){
+    if(readOnlyBlocked()) return;
     const entry = state.history.find(e=>e.id === id);
     if(!entry) return;
     const next = window.prompt(i18n('promptRenameEntry'), entry.label);
@@ -1252,6 +1257,7 @@
   }
 
   function unlinkAircallSnapshot(id){
+    if(readOnlyBlocked()) return;
     const entry = state.history.find(e=>e.id === id);
     if(!entry || !entry.aircallSnapshot) return;
     delete entry.aircallSnapshot;
@@ -2362,8 +2368,15 @@
     if(m && (m.role === 'admin' || m.role === 'manager')) return m.role;
     return 'cx';
   }
-  function myRole(){ return currentUser ? roleOfEmail(currentUser.email) : 'cx'; }
-  function isAdmin(){ return myRole() === 'admin'; }
+  // « Voir comme » (admin) : l'app s'affiche exactement comme pour un collègue — son rôle, son
+  // équipe, son historique — en lecture seule. viewAs = { email } pendant ce mode ; realSelf garde
+  // mon propre surnom/équipe/historique pour revenir à ma vue d'un clic.
+  let viewAs = null;
+  let realSelf = null;
+  function effectiveEmail(){ return viewAs ? viewAs.email : (currentUser ? currentUser.email : null); }
+  function realIsAdmin(){ return currentUser ? roleOfEmail(currentUser.email) === 'admin' : false; }
+  function myRole(){ return currentUser ? roleOfEmail(effectiveEmail()) : 'cx'; }
+  function isAdmin(){ return myRole() === 'admin' && !viewAs; }
   function canSeeTeamTab(){ const r = myRole(); return r === 'admin' || r === 'manager'; }
   function roleLabel(role){ return i18n(role === 'admin' ? 'roleAdmin' : role === 'manager' ? 'roleManager' : 'roleCx'); }
 
@@ -2401,16 +2414,23 @@
 
   function isPersonalScope(){ return trendsScope === 'me'; }
 
-  function tagMine(entries){
-    const me = currentUser ? currentUser.email : null;
-    entries.forEach(e=>{ e._ownerEmail = me; e._ownerName = myNickname || (currentUser && currentUser.name) || me; });
+  function tagAs(entries, email, name){
+    entries.forEach(e=>{ e._ownerEmail = email; e._ownerName = name || email; });
     return entries;
   }
+  function tagMine(entries){
+    const me = effectiveEmail();
+    return tagAs(entries, me, myNickname || (!viewAs && currentUser && currentUser.name) || me);
+  }
   // Toutes les entrées de l'équipe/de l'entreprise : celles des autres telles que chargées depuis
-  // Drive, plus les miennes dans leur état le plus à jour (state.history).
+  // Drive, plus les miennes dans leur état le plus à jour (state.history). En « Voir comme »,
+  // state.history est l'historique du collègue et le mien (à jour) vient de realSelf.
   function everyoneEntries(){
     const me = currentUser ? currentUser.email : null;
-    return pool.entries.filter(e=> e._ownerEmail !== me).concat(tagMine(state.history));
+    const eff = effectiveEmail();
+    let list = pool.entries.filter(e=> e._ownerEmail !== me && e._ownerEmail !== eff);
+    if(viewAs && realSelf) list = list.concat(tagAs(realSelf.history, me, realSelf.nickname));
+    return list.concat(tagMine(state.history));
   }
   function entriesForTeam(team){
     return everyoneEntries().filter(e=> team === '__unassigned__' ? !teamForEmail(e._ownerEmail) : teamForEmail(e._ownerEmail) === team);
@@ -2605,6 +2625,10 @@
   }
 
   function resetSessionState(){
+    viewAs = null;
+    realSelf = null;
+    document.body.classList.remove('impersonating');
+    if(viewAsEls && viewAsEls.banner) viewAsEls.banner.hidden = true;
     accessToken = null;
     currentUser = null;
     myNickname = null;
@@ -2729,6 +2753,7 @@
   // Lecture-modification-écriture : l'annuaire est relu juste avant d'écrire pour réduire le
   // risque d'écraser une modification faite en même temps par quelqu'un d'autre.
   async function updateTeamDirectory(mutateFn){
+    if(viewAs) throw new Error('read-only-impersonation');
     const fresh = await loadTeamDirectory();
     const draft = { teams: fresh.teams.slice(), members: Object.assign({}, fresh.members) };
     mutateFn(draft);
@@ -2879,10 +2904,89 @@
   function renderUserChip(){
     if(!currentUser) return;
     authEls.userChipName.textContent = myNickname || currentUser.name;
-    authEls.userChipMeta.textContent = (myTeam || '—') + ' · ' + currentUser.email;
+    authEls.userChipMeta.textContent = (myTeam || '—') + ' · ' + effectiveEmail();
     authEls.userChipRole.textContent = roleLabel(myRole());
     authEls.userChipRole.className = 'role-badge role-' + myRole();
+    authEls.editProfileBtn.hidden = !!viewAs;
+    renderViewAsUi();
   }
+
+  // ---------------------------- « Voir comme » (admin) ----------------------------
+  const viewAsEls = {
+    select: document.getElementById('viewAsSelect'),
+    banner: document.getElementById('viewAsBanner'),
+    bannerLabel: document.getElementById('viewAsBannerLabel'),
+    exitBtn: document.getElementById('exitViewAsBtn'),
+  };
+  function viewAsCandidates(){
+    const emails = new Set(Object.keys(teamDirectory.members));
+    pool.files.forEach(f=>{ if(f.ownerEmail) emails.add(f.ownerEmail); });
+    emails.delete(currentUser ? currentUser.email : '');
+    return Array.from(emails).map(email=> ({ email, name: displayNameForEmail(email), team: teamForEmail(email), role: roleOfEmail(email) }))
+      .sort((a,b)=> a.name.localeCompare(b.name));
+  }
+  function renderViewAsUi(){
+    const canUse = realIsAdmin() && poolLoaded && !viewAs;
+    viewAsEls.select.hidden = !canUse;
+    if(canUse){
+      viewAsEls.select.innerHTML = `<option value="">${escapeHtml(i18n('viewAsPlaceholder'))}</option>` +
+        viewAsCandidates().map(c=> `<option value="${escapeAttr(c.email)}">${escapeHtml(c.name + ' — ' + (c.team || i18n('scopeUnassigned')) + ' · ' + roleLabel(c.role))}</option>`).join('');
+      viewAsEls.select.value = '';
+    }
+    viewAsEls.banner.hidden = !viewAs;
+    document.body.classList.toggle('impersonating', !!viewAs);
+    if(viewAs){
+      viewAsEls.bannerLabel.textContent = i18n('viewAsBanner', { name: myNickname || viewAs.email, role: roleLabel(myRole()), team: myTeam || i18n('scopeUnassigned') });
+    }
+  }
+  function readOnlyBlocked(){
+    if(!viewAs) return false;
+    showToast(i18n('toastViewAsReadOnly'));
+    return true;
+  }
+  function resetViewState(){
+    trendsScope = 'me'; trendsCx = ''; trendsEntryFilter = []; trendsEntryFilterAnchor = null;
+    teamPageScope = 'all';
+    if(state.historyView) exitHistoryView();
+    if(state.doctorScope){ els.doctorScorecardSearch.value = ''; state.doctorScope = null; }
+  }
+  function historyOf(email){
+    return Array.from((pool.byOwner.get(email) || new Map()).values()).sort((a,b)=> a.savedAt.localeCompare(b.savedAt));
+  }
+  function enterViewAs(email, silent){
+    if(!realIsAdmin() || !poolLoaded || !email || email === currentUser.email) return;
+    if(syncInFlight){ showToast(i18n('toastWaitSync')); return; }
+    realSelf = { nickname: myNickname, team: myTeam, history: state.history };
+    viewAs = { email };
+    myNickname = displayNameForEmail(email);
+    myTeam = teamForEmail(email);
+    state.history = historyOf(email);
+    resetViewState();
+    applyRoleUi();
+    renderHistory();
+    render();
+    setActivePage(activePage);
+    if(!silent) showToast(i18n('toastViewAsOn', { name: myNickname }));
+  }
+  function exitViewAs(silent){
+    if(!viewAs) return null;
+    const was = viewAs.email;
+    viewAs = null;
+    myNickname = realSelf.nickname;
+    myTeam = realSelf.team;
+    state.history = realSelf.history;
+    realSelf = null;
+    resetViewState();
+    applyRoleUi();
+    renderHistory();
+    render();
+    setActivePage(activePage);
+    if(syncDirty) scheduleHistorySync();
+    if(!silent) showToast(i18n('toastViewAsOff'));
+    return was;
+  }
+  viewAsEls.select.addEventListener('change', ()=>{ if(viewAsEls.select.value) enterViewAs(viewAsEls.select.value); });
+  viewAsEls.exitBtn.addEventListener('click', ()=> exitViewAs());
 
   // Tout ce qui dépend du rôle, recalculé à la connexion et après un changement de rôle/équipe.
   function applyRoleUi(){
@@ -2998,7 +3102,10 @@
 
   async function reloadPool(){
     if(!accessToken) return;
-    if(syncDirty || syncInFlight){ showToast(i18n('toastWaitSync')); return; }
+    if(syncInFlight || (syncDirty && !viewAs)){ showToast(i18n('toastWaitSync')); return; }
+    // « Voir comme » actif : on revient un instant à ma vue pour recharger mes propres données,
+    // puis on rebascule sur le même collègue avec ses données fraîches.
+    const viewingEmail = exitViewAs(true);
     setPoolLoading(true);
     try{
       const [dir, data] = await Promise.all([loadTeamDirectory(), fetchPool()]);
@@ -3029,6 +3136,7 @@
       if(activePage === 'team') renderTeamPage();
       // Mes anciens envois collab sont fusionnés dans mon fichier history-… dès la connexion.
       if(myLegacyFileIds.length || restoredUnsaved) scheduleHistorySync();
+      if(viewingEmail) enterViewAs(viewingEmail, true);
     }catch(e){
       setPoolLoading(false);
       if(e && e.authExpired){ handleSessionExpired(); return; }
@@ -3058,6 +3166,9 @@
   function scheduleHistorySync(){
     if(!accessToken || !poolLoaded) return;
     syncDirty = true;
+    // En « Voir comme », state.history est celui d'un collègue : on n'écrit rien. L'éventuelle
+    // synchronisation en attente (la mienne) repart dès le retour à ma vue — voir exitViewAs().
+    if(viewAs) return;
     setSyncStatus('pending');
     clearTimeout(syncTimer);
     syncTimer = setTimeout(runHistorySync, 700);
@@ -3065,6 +3176,7 @@
 
   async function runHistorySync(){
     clearTimeout(syncTimer);
+    if(viewAs){ syncDirty = true; return; }
     if(syncInFlight){ syncDirty = true; return; }
     if(!accessToken) return;
     syncInFlight = true;
