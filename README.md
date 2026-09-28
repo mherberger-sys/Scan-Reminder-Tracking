@@ -3,10 +3,17 @@
 App installable (PWA) qui réunit l'outil individuel et la vue collective de l'équipe :
 
 - **Mon suivi** : liste des patients à contacter + export « scan yesterday » → dashboard → « Ajouter à l'historique ».
-  L'historique est enregistré directement dans le dossier Google Drive partagé (un fichier `history-<personne>.json` par personne,
-  plus les fichiers d'origine en `source-…`).
+  L'historique est enregistré directement dans le dossier Google Drive partagé (un fichier `history-<personne>.json` par personne).
 - **Tendances** : taux de scan par jour, commitment level, fiche docteur, top docteurs Scan rookie/NSPTM, Aircall, comparaison.
 - **Équipe** (managers et admins) : comparaison entre équipes, détail par CX, fichiers de données, gestion des équipes/rôles (admin).
+
+## Données patients
+
+Le Dashboard du jour garde tout dans le navigateur. Sur le Drive, chaque vérification ne contient que : ID patient, lien
+monitoring, docteur, commitment level, days late, statut, date de scan (+ traitement, durée, total scans, modèle et version
+de scan). Ni nom, ni âge, ni colonne supplémentaire, ni copie des fichiers importés ; le téléphone est remplacé par une
+empreinte SHA-256 (`phoneHash`) qui suffit à relier les appels Aircall. Chaque historique est nettoyé à la connexion de son
+auteur ; l'admin peut tout nettoyer d'un coup (Équipe → « Nettoyer les données existantes »).
 
 ## Rôles
 

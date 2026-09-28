@@ -284,8 +284,72 @@
   // L'historique n'est plus dans le localStorage : il est enregistré sur le Drive partagé, dans un
   // fichier par personne (voir « Drive : historique personnel » plus bas). saveHistory() garde son
   // nom et ses appels d'origine, mais planifie désormais cette synchronisation.
+  // Seuls le nom du fichier, son nombre de lignes et son statut sont gardés : ni son contenu
+  // (dataUrl) ni de copie sur le Drive — voir « Minimisation des données patients » ci-dessous.
   function stripMetaDataUrl(meta){
-    return meta ? { status: meta.status, name: meta.name, count: meta.count, message: meta.message, sourceFileId: meta.sourceFileId } : meta;
+    return meta ? { status: meta.status, name: meta.name, count: meta.count, message: meta.message } : meta;
+  }
+
+  // ---------------------------- Minimisation des données patients ----------------------------
+  // Le Dashboard du jour garde tout dans le navigateur (noms, téléphones, toutes les colonnes).
+  // Ce qui est enregistré sur le Drive partagé est réduit au strict nécessaire aux calculs :
+  //   - retirés : nom/prénom, âge, colonnes non utilisées par l'app (r.extra) ;
+  //   - téléphone remplacé par une empreinte (phoneHash, SHA-256) : illisible, mais les appels
+  //     Aircall, codés de la même façon, se relient toujours aux bons patients ;
+  //   - gardés : ID patient, lien monitoring, docteur, commitment, days late, statut, date de scan,
+  //     traitement, durée, total scans, modèle de téléphone, version de scan.
+  const STORED_ROW_KEYS = ['id','doctor','commitment','daysLate','daysLateKnown','url','scanned','scanDate','treatment','deviceModel','scanVersion','treatmentDays','totalScans'];
+  const phoneHashCache = new Map();
+  async function hashPhone(phone){
+    const n = normalizePhoneNumber(phone);
+    if(!n) return '';
+    if(phoneHashCache.has(n)) return phoneHashCache.get(n);
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('srs-phone-v1:' + n));
+    const h = 'h1:' + Array.from(new Uint8Array(buf)).slice(0, 16).map(b=> b.toString(16).padStart(2, '0')).join('');
+    phoneHashCache.set(n, h);
+    return h;
+  }
+  function rowIsMinimized(r){
+    if(!r || r.name !== '—' || r.age !== '—' || r.phone) return false;
+    if(r.extra && Object.keys(r.extra).length) return false;
+    return Object.keys(r).every(k=> STORED_ROW_KEYS.includes(k) || ['name','age','phone','extra','phoneHash'].includes(k));
+  }
+  async function minimizeRow(r){
+    const out = {};
+    STORED_ROW_KEYS.forEach(k=>{ if(r[k] !== undefined) out[k] = r[k]; });
+    out.name = '—';
+    out.age = '—';
+    out.phone = '';
+    out.extra = {};
+    out.phoneHash = r.phoneHash || (r.phone ? await hashPhone(r.phone) : '');
+    return out;
+  }
+  function metaIsMinimized(meta){ return !meta || (!meta.dataUrl && !meta.sourceFileId); }
+  // Renvoie l'entrée minimisée (nouvel objet) et si quelque chose a été retiré.
+  async function minimizeEntry(entry){
+    const rows = entry.rows || [];
+    const changed = !rows.every(rowIsMinimized) || !metaIsMinimized(entry.calledFileMeta) || !metaIsMinimized(entry.scannedFileMeta);
+    if(!changed) return { entry, changed: false };
+    const out = Object.assign({}, entry, {
+      rows: await Promise.all(rows.map(minimizeRow)),
+      calledFileMeta: stripMetaDataUrl(entry.calledFileMeta),
+      scannedFileMeta: stripMetaDataUrl(entry.scannedFileMeta),
+    });
+    return { entry: out, changed: true };
+  }
+  async function minimizeEntries(entries){
+    let changed = 0;
+    const out = [];
+    for(const e of entries){
+      const res = await minimizeEntry(e);
+      if(res.changed) changed++;
+      out.push(res.entry);
+    }
+    return { entries: out, changed };
+  }
+  async function ensureCallHashes(calls){
+    if(!calls) return;
+    for(const c of calls){ if(!c.phoneHash && c.phone) c.phoneHash = await hashPhone(c.phone); }
   }
 
   function saveHistory(){
@@ -740,6 +804,7 @@
       renderAircallBreakdown();
       return;
     }
+    await ensureCallHashes(calls);
     state.aircallRawCalls = calls;
     setDropzoneLoaded(els.dzAircall, els.dzAircallLabel, els.dzAircallFile, file, calls.length);
     saveFileToStorage(AIRCALL_STORAGE_KEY, file.name, calls);
@@ -1048,16 +1113,18 @@
     const me = currentUser ? currentUser.email : null;
     const othersIds = new Set(pool.entries.filter(e=> e._ownerEmail !== me).map(e=> String(e.id)));
     let added = 0, skippedOthers = 0;
+    const toAdd = [];
     entries.forEach(entry=>{
       if(!entry || !entry.id || existingIds.has(String(entry.id))) return;
       if(othersIds.has(String(entry.id))){ skippedOthers++; return; }
       if(!Array.isArray(entry.rows) || !entry.stats) return;
       const clean = {};
       Object.keys(entry).forEach(k=>{ if(!k.startsWith('_')) clean[k] = entry[k]; });
-      state.history.push(clean);
+      toAdd.push(clean);
       existingIds.add(String(entry.id));
       added++;
     });
+    state.history.push(...(await minimizeEntries(toAdd)).entries);
     if(state.history.length > HISTORY_MAX_ENTRIES){
       state.history.sort((a,b)=> a.savedAt.localeCompare(b.savedAt));
       state.history = state.history.slice(state.history.length - HISTORY_MAX_ENTRIES);
@@ -1174,17 +1241,17 @@
     }).join('');
   }
 
-  function addCurrentToHistory(){
+  async function addCurrentToHistory(){
     if(readOnlyBlocked()) return;
     if(!poolLoaded){ showToast(i18n('toastWaitLoading')); return; }
     if(state.demo){ showToast(i18n('toastGenerateFirst')); return; }
     if(state.historyView){ showToast(i18n('toastReturnToCurrentData')); return; }
     const label = (els.saveName.value || '').trim() || defaultSnapshotName();
     const rows = state.rows || [];
-    // Copies de calledFileMeta/scannedFileMeta (avec leur dataUrl) : à la synchronisation, chaque
-    // fichier d'origine est envoyé sur Drive comme fichier à part et l'entrée ne garde que son ID
-    // (sourceFileId) — l'historique reste léger et les fichiers restent téléchargeables.
-    const entry = { id: String(Date.now()), label, savedAt: new Date().toISOString(), rows, stats: computeStats(rows, getCalledOverride()), calledFileMeta: state.calledFileMeta ? Object.assign({}, state.calledFileMeta) : null, scannedFileMeta: state.scannedFileMeta ? Object.assign({}, state.scannedFileMeta) : null };
+    // Statistiques calculées sur les lignes complètes, puis lignes minimisées avant enregistrement
+    // (voir « Minimisation des données patients »).
+    const stats = computeStats(rows, getCalledOverride());
+    const entry = { id: String(Date.now()), label, savedAt: new Date().toISOString(), rows: await Promise.all(rows.map(minimizeRow)), stats, calledFileMeta: stripMetaDataUrl(state.calledFileMeta), scannedFileMeta: stripMetaDataUrl(state.scannedFileMeta) };
     state.history.push(entry);
     if(state.history.length > HISTORY_MAX_ENTRIES){
       state.history.sort((a,b)=> a.savedAt.localeCompare(b.savedAt));
@@ -1761,7 +1828,8 @@
   function computeAircallOutcomeBreakdown(rows, calls){
     const dedupedCalls = dedupeAircallCallsByPhone(calls);
     const phoneMap = new Map();
-    rows.forEach(r=>{ if(r.phone) phoneMap.set(r.phone, r); });
+    // Les patients enregistrés n'ont plus que l'empreinte du téléphone : on relie par empreinte.
+    rows.forEach(r=>{ if(r.phoneHash) phoneMap.set(r.phoneHash, r); });
     const buckets = {
       messagerie: {key:'messagerie', label:i18n('aircallBucketVoicemail'), total:0, scannedAfter:0},
       decroche: {key:'decroche', label:i18n('aircallBucketAnswered'), total:0, scannedAfter:0},
@@ -1772,7 +1840,7 @@
     const rowsByBucket = { messagerie: [], decroche: [], non_decroche: [] };
     let matched = 0;
     dedupedCalls.forEach(call=>{
-      const patient = phoneMap.get(call.phone);
+      const patient = call.phoneHash ? phoneMap.get(call.phoneHash) : null;
       if(!patient) return;
       matched++;
       const key = classifyAircallCall(call);
@@ -3166,6 +3234,8 @@
         restoredUnsaved = true;
       }
       unsavedStash = null;
+      const minimized = await minimizeEntries(state.history);
+      state.history = minimized.entries;
       poolLoaded = true;
       setPoolLoading(false);
       setSyncStatus(myLegacyFileIds.length ? 'pending' : 'ok');
@@ -3174,7 +3244,9 @@
       if(pendingDoctorScope){ const d = pendingDoctorScope; pendingDoctorScope = null; if(getAllDoctorNames().includes(d)) setDoctorScope(d); }
       if(activePage === 'team') renderTeamPage();
       // Mes anciens envois collab sont fusionnés dans mon fichier history-… dès la connexion.
-      if(myLegacyFileIds.length || restoredUnsaved) scheduleHistorySync();
+      // Mon historique contenait encore des données patients (enregistré avant la minimisation) :
+      // il est réécrit tout de suite dans sa version minimisée.
+      if(myLegacyFileIds.length || restoredUnsaved || minimized.changed) scheduleHistorySync();
       if(viewingEmail) enterViewAs(viewingEmail, true);
     }catch(e){
       setPoolLoading(false);
@@ -3222,7 +3294,6 @@
     syncDirty = false;
     setSyncStatus('saving');
     try{
-      await uploadPendingSources();
       await writeMyHistoryFile();
       await trashMyLegacyFiles();
       syncInFlight = false;
@@ -3241,36 +3312,7 @@
     if(syncDirty || syncInFlight){ e.preventDefault(); e.returnValue = ''; }
   });
 
-  function dataUrlToBlob(dataUrl){
-    const [head, b64] = dataUrl.split(',');
-    const mime = (head.match(/data:([^;]+)/) || [])[1] || 'application/octet-stream';
-    const bin = atob(b64 || '');
-    const bytes = new Uint8Array(bin.length);
-    for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return new Blob([bytes], { type: mime });
-  }
   function safeEmailSlug(){ return (currentUser.email || 'unknown').split('@')[0].replace(/[^a-zA-Z0-9]+/g, '-'); }
-
-  // Envoie sur Drive, en fichiers séparés, les fichiers d'origine encore embarqués (dataUrl) dans
-  // mes entrées, puis ne garde que leur ID — l'historique lui-même reste léger à charger.
-  async function uploadPendingSources(){
-    for(const entry of state.history){
-      for(const field of ['calledFileMeta', 'scannedFileMeta']){
-        const meta = entry[field];
-        if(!meta || !meta.dataUrl || meta.sourceFileId) continue;
-        const blob = dataUrlToBlob(meta.dataUrl);
-        const mp = multipartBody({
-          name: `source-${safeEmailSlug()}-${entry.id}-${field === 'calledFileMeta' ? 'called' : 'scanned'}-${meta.name || 'export'}`,
-          parents: [DRIVE_FOLDER_ID],
-          properties: { kind: 'source', uploaderEmail: currentUser.email, entryId: String(entry.id) },
-        }, blob, blob.type || 'application/octet-stream');
-        const res = await driveFetch(`${DRIVE_UPLOAD_API}?uploadType=multipart&fields=id`, { method: 'POST', headers: { 'Content-Type': mp.contentType }, body: mp.body });
-        if(!res.ok) throw new Error('source-upload-failed');
-        meta.sourceFileId = (await res.json()).id;
-        delete meta.dataUrl;
-      }
-    }
-  }
 
   function cleanEntryForStorage(entry){
     const out = {};
@@ -3545,6 +3587,55 @@
     wire('data-member-role-email', 'role', 'toastRoleUpdated', 'toastRoleUpdateFailed');
   }
 
+  // Nettoyage (admin) : réécrit tous les fichiers de données du Drive dans leur version minimisée
+  // et met à la corbeille les copies de fichiers d'origine (source-…). Chacun est aussi nettoyé
+  // automatiquement à sa prochaine connexion ; ce bouton le fait tout de suite pour tout le monde.
+  async function purgePatientData(){
+    if(!isAdmin()) return;
+    if(syncDirty || syncInFlight){ showToast(i18n('toastWaitSync')); return; }
+    if(!confirm(i18n('confirmPurge'))) return;
+    const btn = document.getElementById('purgeDataBtn');
+    const status = document.getElementById('purgeDataStatus');
+    btn.disabled = true;
+    status.textContent = i18n('purgeRunning');
+    let rewritten = 0, trashed = 0, failed = 0;
+    try{
+      const files = await listFolderFiles();
+      for(const f of files){
+        if(f.name === TEAM_DIRECTORY_FILENAME) continue;
+        const props = f.properties || {};
+        try{
+          if(props.kind === 'source'){
+            const res = await driveFetch(`${DRIVE_API}/${f.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) });
+            if(res.ok) trashed++; else failed++;
+            continue;
+          }
+          const content = await (await driveFetch(`${DRIVE_API}/${f.id}?alt=media`)).json();
+          const entries = Array.isArray(content) ? content : content && content.entries;
+          if(!Array.isArray(entries)) continue;
+          const valid = entries.filter(e=> e && Array.isArray(e.rows));
+          const { entries: minimized, changed } = await minimizeEntries(valid);
+          if(!changed) continue;
+          const byId = new Map(minimized.map(e=> [String(e.id), e]));
+          const nextEntries = entries.map(e=> (e && byId.get(String(e.id))) || e);
+          const payload = JSON.stringify(Array.isArray(content) ? nextEntries : Object.assign({}, content, { entries: nextEntries, updatedAt: new Date().toISOString() }));
+          const res = await driveFetch(`${DRIVE_UPLOAD_API}/${f.id}?uploadType=media`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: payload });
+          if(res.ok) rewritten++; else failed++;
+        }catch(e){
+          if(e && e.authExpired) throw e;
+          failed++;
+        }
+      }
+      status.textContent = i18n(failed ? 'purgeDoneWithErrors' : 'purgeDone', { rewritten, trashed, failed });
+      await reloadPool();
+    }catch(e){
+      if(e && e.authExpired){ handleSessionExpired(); return; }
+      status.textContent = i18n('purgeFailed');
+    }
+    btn.disabled = false;
+  }
+  document.getElementById('purgeDataBtn').addEventListener('click', purgePatientData);
+
   function refreshAuthI18n(){
     renderAuthStatus();
     renderGoogleBtnLabel();
@@ -3567,14 +3658,15 @@
   restoreCachedFile(CALLED_STORAGE_KEY, els.dz1, document.getElementById('dz1label'), els.dz1file, 'called', 'calledFileMeta');
   restoreCachedFile(SCANNED_STORAGE_KEY, els.dz2, document.getElementById('dz2label'), els.dz2file, 'scanned', 'scannedFileMeta');
   restoreCachedFile(AIRCALL_STORAGE_KEY, els.dzAircall, els.dzAircallLabel, els.dzAircallFile, 'aircallRawCalls');
-  {
+  (async ()=>{
     const savedRange = loadAircallRange();
     if(savedRange){
       els.aircallRangeStart.value = savedRange.start;
       els.aircallRangeEnd.value = savedRange.end;
     }
+    await ensureCallHashes(state.aircallRawCalls);
     applyAircallRange();
-  }
+  })();
   updateRunButton();
   state.history = [];
   renderHistory();
