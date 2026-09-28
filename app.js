@@ -2282,6 +2282,13 @@
   const GOOGLE_CLIENT_ID = '464525857093-e07onmr6jdbpoh6t3t1387nmlsr1fhk0.apps.googleusercontent.com';
   const DRIVE_FOLDER_ID = '1z_wEPjSz7YWrHmG-VKVM6zw-2_iEmCKS';
   const ADMIN_EMAILS = ['m.herberger@dental-monitoring.com'];
+  // Seuls les comptes Google de l'entreprise peuvent entrer dans l'app (les deux orthographes du
+  // domaine existent). Un autre compte est refusé et son jeton aussitôt révoqué.
+  const ALLOWED_EMAIL_DOMAINS = ['dental-monitoring.com', 'dentalmonitoring.com'];
+  function isAllowedEmail(email){
+    const domain = String(email || '').toLowerCase().split('@')[1] || '';
+    return ALLOWED_EMAIL_DOMAINS.includes(domain);
+  }
   const DEFAULT_TEAMS = ['Dach', 'Frabel', 'CEE', 'NAM', 'UKI'];
   const TEAM_DIRECTORY_FILENAME = '_team-directory.json';
   const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email';
@@ -2679,8 +2686,19 @@
     }catch(e){
       currentUser = { email: 'unknown', name: 'Unknown' };
     }
+    if(!isAllowedEmail(currentUser.email)){ refuseAccount(currentUser.email); return; }
     saveSession(accessToken, response.expires_in, currentUser);
     enterConnectedState();
+  }
+
+  function refuseAccount(email){
+    const token = accessToken;
+    try{ if(token && window.google && google.accounts) google.accounts.oauth2.revoke(token, ()=>{}); }catch(e){}
+    resetSessionState();
+    clearSession();
+    clearProfileCache();
+    showGate();
+    setAuthStatus('authWrongDomain', { email: email && email !== 'unknown' ? email : '?' }, 'err');
   }
 
   authEls.googleSignInBtn.addEventListener('click', ()=>{ if(tokenClient) tokenClient.requestAccessToken(); });
@@ -3661,7 +3679,8 @@
   showGate();
   {
     const saved = loadValidSession();
-    if(saved){
+    if(saved && !isAllowedEmail(saved.user && saved.user.email)){ clearSession(); clearProfileCache(); }
+    else if(saved){
       accessToken = saved.token;
       currentUser = saved.user;
       enterConnectedState();
