@@ -1,7 +1,7 @@
 // Traductions et changelogs de l'app (FR/EN).
   window.SRS_I18N = {
     fr: {
-      brandTitle: 'PaWNS Tracker',
+      brandTitle: 'Scan Reminder Tracker',
       tabHome: 'Accueil',
       tabDashboard: 'Dashboard',
       tabFiles: 'Fichiers importés',
@@ -158,7 +158,7 @@
       downloadFileTitle: 'Télécharger {name}',
       downloadBtnLabel: 'Télécharger',
       docsWhatTitle: 'À quoi sert cet outil ?',
-      docsWhatBody: "PaWNS Tracker croise chaque jour deux exports pour savoir instantanément qui, parmi les patients relancés, s'est reconnecté et a scanné — et qui doit encore être rappelé. Il garde un historique daté de chaque vérification pour suivre l'évolution dans le temps, repérer les docteurs dont les patients décrochent le plus, et mesurer l'impact réel des campagnes d'appels (via Aircall) ou d'email.",
+      docsWhatBody: "Scan Reminder Tracker croise chaque jour deux exports pour savoir instantanément qui, parmi les patients relancés, s'est reconnecté et a scanné — et qui doit encore être rappelé. Il garde un historique daté de chaque vérification pour suivre l'évolution dans le temps, repérer les docteurs dont les patients décrochent le plus, et mesurer l'impact réel des campagnes d'appels (via Aircall) ou d'email.",
       docsPrivacyTitle: 'Confidentialité',
       docsPrivacyBody: "Tout se passe en local dans votre navigateur — aucune donnée patient n'est envoyée à un serveur. Les fichiers importés et l'historique restent stockés sur cette machine jusqu'à ce que vous les effaciez.",
       docsHowTitle: 'Comment ça marche',
@@ -211,7 +211,7 @@
       scorecardFilenamePrefix: 'fiche-docteur-',
     },
     en: {
-      brandTitle: 'PaWNS Tracker',
+      brandTitle: 'Scan Reminder Tracker',
       tabHome: 'Home',
       tabDashboard: 'Dashboard',
       tabFiles: 'Imported files',
@@ -368,7 +368,7 @@
       downloadFileTitle: 'Download {name}',
       downloadBtnLabel: 'Download',
       docsWhatTitle: 'What is this tool for?',
-      docsWhatBody: 'PaWNS Tracker cross-references two daily exports to instantly show which contacted patients reconnected and scanned — and who still needs a follow-up. It keeps a dated history of every check to track progress over time, spot the doctors whose patients drop off the most, and measure the real impact of call (via Aircall) or email campaigns.',
+      docsWhatBody: 'Scan Reminder Tracker cross-references two daily exports to instantly show which contacted patients reconnected and scanned — and who still needs a follow-up. It keeps a dated history of every check to track progress over time, spot the doctors whose patients drop off the most, and measure the real impact of call (via Aircall) or email campaigns.',
       docsPrivacyTitle: 'Privacy',
       docsPrivacyBody: 'Everything runs locally in your browser — no patient data is ever sent to a server. Imported files and history stay stored on this machine until you clear them.',
       docsHowTitle: 'How it works',
@@ -691,7 +691,7 @@ Object.assign(window.SRS_I18N.fr, {
   toastRoleUpdated: 'Rôle mis à jour ✓',
   toastRoleUpdateFailed: 'Impossible de mettre à jour le rôle — vérifie ta connexion.',
   importHistoryBtnLabel: 'Importer un historique (JSON)',
-  docsWhatBody: "PaWNS Tracker croise chaque jour la liste des patients relancés avec l'export « scan yesterday » du lendemain, pour savoir qui s'est reconnecté et a scanné — et qui doit encore être rappelé. Chaque vérification enregistrée alimente votre historique et les tendances : les vôtres, et celles de l'équipe selon votre rôle.",
+  docsWhatBody: "Scan Reminder Tracker croise chaque jour la liste des patients relancés avec l'export « scan yesterday » du lendemain, pour savoir qui s'est reconnecté et a scanné — et qui doit encore être rappelé. Chaque vérification enregistrée alimente votre historique et les tendances : les vôtres, et celles de l'équipe selon votre rôle.",
   docsPrivacyBody: "Les fichiers importés sont lus et croisés dans votre navigateur, avec toutes leurs colonnes. Quand vous cliquez sur « Ajouter à l'historique », seule une version réduite de la vérification est enregistrée, avec votre compte Google, dans le dossier Drive partagé : ID patient, lien monitoring, docteur, commitment, days late, statut et date de scan. Ni nom, ni âge, ni téléphone en clair (une empreinte codée sert à relier les appels Aircall), ni copie des fichiers. L'app n'a ni serveur ni base de données.",
   docsHow1: "Connectez-vous avec votre compte Google, puis choisissez votre surnom et votre équipe (une seule fois).",
   docsHow2: "Dans « Dashboard », déposez la liste des patients à contacter (case 1), puis le lendemain l'export « scan yesterday » (case 2).",
@@ -722,7 +722,7 @@ Object.assign(window.SRS_I18N.fr, {
 });
 
 Object.assign(window.SRS_I18N.en, {
-  brandTitle: 'PaWNS Tracker',
+  brandTitle: 'Scan Reminder Tracker',
   gateSub: 'Cross-reference the list of followed-up patients with the "scan yesterday" export, keep a history of your checks and follow your team\'s trends.',
   gatePrivacy: "Files you import are cross-referenced in your browser. Only the history you save is sent, with your own Google account, to the team's shared Google Drive folder — the app has no server and no database.",
   stepSignInTitle: 'Sign in',
@@ -859,7 +859,7 @@ Object.assign(window.SRS_I18N.en, {
   toastRoleUpdated: 'Role updated ✓',
   toastRoleUpdateFailed: 'Could not update role — check your connection.',
   importHistoryBtnLabel: 'Import a history (JSON)',
-  docsWhatBody: 'PaWNS Tracker cross-references each day the list of followed-up patients with the next day\'s "scan yesterday" export, to see who reconnected and scanned — and who still needs a follow-up. Every saved check feeds your history and the trends: yours, and your team\'s depending on your role.',
+  docsWhatBody: 'Scan Reminder Tracker cross-references each day the list of followed-up patients with the next day\'s "scan yesterday" export, to see who reconnected and scanned — and who still needs a follow-up. Every saved check feeds your history and the trends: yours, and your team\'s depending on your role.',
   docsPrivacyBody: 'Imported files are read and cross-referenced in your browser, with all their columns. When you click "Add to history", only a reduced version of the check is saved, with your Google account, to the shared Drive folder: patient ID, monitoring link, doctor, commitment, days late, status and scan date. No name, no age, no readable phone number (a coded fingerprint links Aircall calls), no copy of the files. The app has no server and no database.',
   docsHow1: 'Sign in with your Google account, then pick your nickname and team (once).',
   docsHow2: 'In "Dashboard", drop the list of patients to contact (box 1), then the next day the "scan yesterday" export (box 2).',
@@ -898,6 +898,6 @@ window.SRS_COLLAB_CHANGELOG.unshift({
 
 window.SRS_COLLAB_CHANGELOG.unshift({
   date: '2026-09-28',
-  fr: "L'app s'appelle désormais « PaWNS Tracker » (anciennement « Suivi Relance Scan »).",
-  en: 'The app is now called "PaWNS Tracker" (formerly "Suivi Relance Scan").',
+  fr: "L'app s'appelle désormais « Scan Reminder Tracker » (anciennement « Suivi Relance Scan »).",
+  en: 'The app is now called "Scan Reminder Tracker" (formerly "Suivi Relance Scan").',
 });

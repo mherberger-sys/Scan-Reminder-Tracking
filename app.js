@@ -3324,7 +3324,7 @@
 
   async function writeMyHistoryFile(){
     const payload = JSON.stringify({
-      version: 1, tool: 'PaWNS Tracker', ownerEmail: currentUser.email, updatedAt: new Date().toISOString(),
+      version: 1, tool: 'Scan Reminder Tracker', ownerEmail: currentUser.email, updatedAt: new Date().toISOString(),
       entries: state.history.map(cleanEntryForStorage),
     });
     const metadata = { properties: { kind: 'history', uploaderEmail: currentUser.email, uploaderName: myNickname || currentUser.name } };

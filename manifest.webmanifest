@@ -1,6 +1,6 @@
 {
-  "name": "PaWNS Tracker",
-  "short_name": "PaWNS Tracker",
+  "name": "Scan Reminder Tracker",
+  "short_name": "Scan Reminder Tracker",
   "description": "Vue collective des relances et scans de l'équipe.",
   "start_url": "./",
   "scope": "./",

@@ -1,4 +1,4 @@
-# PaWNS Tracker
+# Scan Reminder Tracker
 
 App installable (PWA) qui réunit l'outil individuel et la vue collective de l'équipe :
 
