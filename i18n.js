@@ -906,6 +906,9 @@ Object.assign(window.SRS_I18N.fr, {
   cohortReloadTemplatesBtn: 'Mettre à jour depuis Gmail',
   cohortTemplateCachedOnly: '(copie enregistrée)',
   dzReplaceTitle: 'Cliquer pour remplacer ce fichier',
+  dzHistoryTitle: "Clic : télécharger ce fichier (l'original s'il est encore sur cet appareil, sinon la liste enregistrée en Excel)",
+  historySheetCalled: 'Patients contactés',
+  historySheetScanned: 'Patients scannés',
   dzNoCopyTitle: "Pas de copie du fichier d'origine sur cet appareil : clique pour le redéposer une fois — ensuite, clic = télécharger · clic droit = remplacer",
   cohortTemplateGone: "Ce modèle n'existe plus dans ton Gmail et n'a pas de copie : clique sur « Mettre à jour depuis Gmail » et choisis-en un autre.",
   cohortTemplateHint: "Gmail ne donne pas accès à ses « Modèles » : enregistrez votre modèle comme brouillon Gmail (sans destinataire), chargez vos brouillons puis choisissez-le — son objet et son contenu (mise en forme, images, pièces jointes) sont repris dans chaque lot.",
@@ -986,6 +989,9 @@ Object.assign(window.SRS_I18N.en, {
   cohortReloadTemplatesBtn: 'Update from Gmail',
   cohortTemplateCachedOnly: '(saved copy)',
   dzReplaceTitle: 'Click to replace this file',
+  dzHistoryTitle: 'Click: download this file (the original if it is still on this device, otherwise the saved list as Excel)',
+  historySheetCalled: 'Contacted patients',
+  historySheetScanned: 'Scanned patients',
   dzNoCopyTitle: 'No copy of the original file on this device: click to drop it again once — then click = download · right-click = replace',
   cohortTemplateGone: 'This template no longer exists in your Gmail and has no saved copy: click "Update from Gmail" and pick another one.',
   cohortTemplateHint: 'Gmail does not expose its "Templates": save your template as a Gmail draft (no recipient), load your drafts, then pick it — its subject and content (formatting, images, attachments) are reused in every batch.',
@@ -1051,4 +1057,9 @@ window.SRS_COLLAB_CHANGELOG.unshift({
   date: '2026-09-29',
   fr: "Nouvel onglet « Cohortes » : à partir d'un export CSV/Excel, cohorte Email (2 à 90 jours de retard, emails nettoyés et dédoublonnés, brouillons Gmail de 499 adresses en Cci) et cohorte Appels (Involved + Dedicated à 30 jours ou moins / tous les autres jusqu'à 80 jours), exportables en Excel.",
   en: 'New "Cohorts" tab: from a CSV/Excel export, an Email cohort (2 to 90 days late, cleaned and de-duplicated emails, Gmail drafts of 499 addresses in Bcc) and a Call cohort (Involved + Dedicated at 30 days or less / everyone else up to 80 days), exportable to Excel.',
+});
+window.SRS_COLLAB_CHANGELOG.unshift({
+  date: '2026-09-29',
+  fr: "Dashboard : en consultant une vérification de l'historique (« Voir »), un clic sur la zone d'un fichier le télécharge — l'original s'il est encore sur cet appareil, sinon la liste enregistrée (patients contactés ou scannés) en Excel.",
+  en: 'Dashboard: while viewing a history check ("View"), clicking a file zone downloads it — the original if it is still on this device, otherwise the saved list (contacted or scanned patients) as Excel.',
 });

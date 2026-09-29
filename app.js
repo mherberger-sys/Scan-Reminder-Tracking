@@ -701,6 +701,7 @@
       dzEl.addEventListener('click', e=>{
         e.preventDefault();
         const info = getDownload();
+        if(info && info.run){ info.run(); return; }
         if(info){
           const a = document.createElement('a');
           a.href = info.dataUrl;
@@ -745,7 +746,8 @@
     setDropzoneLoaded(els.dz1, document.getElementById('dz1label'), els.dz1file, file, data.length);
     saveFileToStorage(CALLED_STORAGE_KEY, file.name, data, dataUrl);
     updateRunButton();
-  }, ()=> (!state.historyView && state.calledFileMeta && state.calledFileMeta.dataUrl) ? { name: state.calledFileMeta.name, dataUrl: state.calledFileMeta.dataUrl } : null);
+  }, ()=> state.historyView ? { run: ()=> downloadHistoryFile(state.historyView, 'calledFileMeta') }
+       : (state.calledFileMeta && state.calledFileMeta.dataUrl) ? { name: state.calledFileMeta.name, dataUrl: state.calledFileMeta.dataUrl } : null);
   wireDrop(els.file2, els.dz2, async file=>{
     const [data, dataUrl] = await Promise.all([parseFile(file), fileToDataUrl(file)]);
     if(!ensurePatientIdField(data)){
@@ -771,7 +773,8 @@
     setDropzoneLoaded(els.dz2, document.getElementById('dz2label'), els.dz2file, file, data.length);
     saveFileToStorage(SCANNED_STORAGE_KEY, file.name, data, dataUrl);
     updateRunButton();
-  }, ()=> (!state.historyView && state.scannedFileMeta && state.scannedFileMeta.dataUrl) ? { name: state.scannedFileMeta.name, dataUrl: state.scannedFileMeta.dataUrl } : null);
+  }, ()=> state.historyView ? { run: ()=> downloadHistoryFile(state.historyView, 'scannedFileMeta') }
+       : (state.scannedFileMeta && state.scannedFileMeta.dataUrl) ? { name: state.scannedFileMeta.name, dataUrl: state.scannedFileMeta.dataUrl } : null);
   function saveAircallRange(start, end){
     try{ localStorage.setItem(AIRCALL_RANGE_STORAGE_KEY, JSON.stringify({start, end})); }catch(e){ /* full/unavailable — ignore */ }
   }
@@ -1230,6 +1233,27 @@
     return false;
   }
 
+  // Vue d'une vérification de l'historique : clic gauche sur une zone de fichier = retélécharger
+  // le fichier d'origine s'il en reste une copie sur cet appareil ; sinon, la liste enregistrée
+  // (patients contactés, ou patients scannés) est reconstituée en Excel à partir de l'historique.
+  async function downloadHistoryFile(entry, field){
+    const meta = entry[field] || {};
+    if(localSourceKeys.has(localSourceKey(entry.id, field)) && await downloadLocalSource(entry.id, field)) return;
+    if(meta.dataUrl || (meta.sourceFileId && accessToken)){ downloadEntrySource(meta); return; }
+    const rows = (entry.rows || []).filter(r=> field === 'calledFileMeta' || r.scanned);
+    const header = ['patient_profile_id','doctor_name','patient_commitment_level','days_late',i18n('csvHeaderStatus'),i18n('csvHeaderScanDate'),'monitoring_url'];
+    const aoa = [header].concat(rows.map(r=> [r.id, r.doctor, r.commitment, r.daysLate, r.scanned ? i18n('statusScanned') : i18n('statusUnscanned'), r.scanDate || '', r.url || '']));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), field === 'calledFileMeta' ? i18n('historySheetCalled') : i18n('historySheetScanned'));
+    const base = String(entry.label || 'export').replace(/[\\/:*?"<>|]+/g, '-').trim() || 'export';
+    const blob = new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    // Nom sans accents : certains navigateurs remplacent sinon le nom par « download ».
+    const fileName = `${base} - ${field === 'calledFileMeta' ? i18n('historySheetCalled') : i18n('historySheetScanned')}.xlsx`.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    downloadDataUrl(url, fileName);
+    setTimeout(()=> URL.revokeObjectURL(url), 2000);
+  }
+
   function renderImportedFilesTable(){
     if(!els.importedFilesBody) return;
     if(!state.history.length){
@@ -1329,6 +1353,8 @@
     els.search.value=''; els.doctorFilter.value=''; els.statusFilter.value='';
     applyDropzoneMeta(els.dz1, document.getElementById('dz1label'), els.dz1file, entry.calledFileMeta);
     applyDropzoneMeta(els.dz2, document.getElementById('dz2label'), els.dz2file, entry.scannedFileMeta);
+    if(entry.calledFileMeta && entry.calledFileMeta.name) els.dz1.title = i18n('dzHistoryTitle');
+    if(entry.scannedFileMeta && entry.scannedFileMeta.name) els.dz2.title = i18n('dzHistoryTitle');
     els.aircallFreezeTarget.value = String(entry.id);
     render();
     renderAircallBreakdown();
