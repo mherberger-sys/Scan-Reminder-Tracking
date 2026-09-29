@@ -3785,6 +3785,7 @@
   });
   renderCohortChannelSwitch();
   let cohortDrafts = {}; // index de lot → true une fois le brouillon créé
+  let cohortSource = null; // fichier d'origine { name, dataUrl } : clic gauche sur la zone = le retélécharger
 
   // ---------------------------- Nettoyage des emails ----------------------------
   // Fautes de frappe fréquentes sur les domaines, corrigées vers le bon domaine.
@@ -3838,19 +3839,26 @@
   const COHORT_DAYS_ALIASES = ['dayslate','daylate','joursderetard','retard','daysoverdue','late'];
   const COHORT_COMMIT_ALIASES = ['patientcommitmentlevel','commitmentlevel','commitment','engagement'];
 
+  // Colonne email : celle qui contient réellement le plus d'adresses. Un nom qui ressemble
+  // (« mail », « email »…) ne suffit plus — une colonne vide ou d'un autre usage (email du
+  // docteur, colonne « Mail envoyé »…) ne doit pas l'emporter sur la vraie colonne des patients.
+  const EMAIL_LIKE_RE = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]{2,}$/;
   function findEmailColumn(data){
-    const key = findColumnByAliases(data, COHORT_EMAIL_ALIASES, normalizeAggressive);
-    if(key) return key;
-    // Repli : la colonne dont la majorité des valeurs contient un « @ ».
-    const keys = Object.keys(data[0] || {});
-    let best = null, bestScore = 0;
+    const sample = data.slice(0, 1000);
+    const keys = new Set();
+    sample.forEach(r=> Object.keys(r).forEach(k=> keys.add(k)));
+    const scores = new Map();
     keys.forEach(k=>{
-      let total = 0, withAt = 0;
-      data.slice(0, 300).forEach(r=>{ const v = String(r[k] || '').trim(); if(v){ total++; if(/^[^\s@]+@[^\s@]+$/.test(v)) withAt++; } });
-      const score = total ? withAt / total : 0;
-      if(score > 0.6 && score > bestScore && !/url|link|lien/i.test(k)){ best = k; bestScore = score; }
+      if(/url|link|lien|doctor|docteur|praticien|clinic|cabinet/i.test(k)) return;
+      let n = 0;
+      sample.forEach(r=>{ if(EMAIL_LIKE_RE.test(String(r[k] || '').trim().replace(/^mailto:/i, ''))) n++; });
+      if(n) scores.set(k, n);
     });
-    return best;
+    if(!scores.size) return null;
+    const best = Array.from(scores.entries()).sort((a,b)=> b[1] - a[1])[0];
+    // À quasi égalité, on préfère une colonne au nom explicite (patient_email, email…).
+    const aliasKey = Array.from(scores.keys()).find(k=> COHORT_EMAIL_ALIASES.includes(normalizeAggressive(k)));
+    return aliasKey && scores.get(aliasKey) >= best[1] * 0.8 ? aliasKey : best[0];
   }
 
   function buildCohorts(data, fileName){
@@ -3971,8 +3979,8 @@
   }
 
   async function loadCohortFile(file){
-    let data;
-    try{ data = await parseFile(file); }catch(e){ setDropzoneError(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, i18n('toastHeadersNotRecognized')); return; }
+    let data, dataUrl = null;
+    try{ [data, dataUrl] = await Promise.all([parseFile(file), fileToDataUrl(file).catch(()=> null)]); }catch(e){ setDropzoneError(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, i18n('toastHeadersNotRecognized')); return; }
     const result = buildCohorts(data, file.name);
     if(result.error){
       cohort = null;
@@ -3983,9 +3991,10 @@
     cohort = result;
     cohort.channel = cohortChannel;
     cohortDrafts = {};
+    cohortSource = dataUrl ? { name: file.name, dataUrl } : null;
     setDropzoneLoaded(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, file, data.length);
-    cohortEls.dz.title = i18n('dzReplaceTitle');
-    saveCohortFile(file.name, result);
+    cohortEls.dz.title = cohortSource ? dzLoadedTitle() : i18n('dzReplaceTitle');
+    saveCohortFile(file.name, result, cohortSource);
     feedDashboardFromCohort();
     renderCohorts();
   }
@@ -4079,13 +4088,17 @@
     db.close();
     return value;
   }
-  async function saveCohortFile(fileName, result){
+  // Le fichier d'origine (pour le retélécharger) va seulement dans IndexedDB, jamais dans le
+  // repli localStorage, trop petit pour lui.
+  async function saveCohortFile(fileName, result, source){
     const record = { fileName, channel: result.channel || cohortChannel, rows: compactCohortRows(result), savedAt: new Date().toISOString() };
-    try{ await idbSet(COHORT_STORAGE_KEY, record); try{ localStorage.removeItem(COHORT_STORAGE_KEY); }catch(e){} return; }
+    if(source === undefined){ try{ const prev = await idbGet(COHORT_STORAGE_KEY); if(prev && prev.fileName === fileName) source = prev.source || null; }catch(e){} }
+    try{ await idbSet(COHORT_STORAGE_KEY, Object.assign({ source: source || null }, record)); try{ localStorage.removeItem(COHORT_STORAGE_KEY); }catch(e){} return; }
     catch(e){ /* IndexedDB indisponible (navigation privée…) : repli localStorage */ }
     try{ localStorage.setItem(COHORT_STORAGE_KEY, JSON.stringify(record)); }catch(e){ /* trop gros — pas grave */ }
   }
-  wireDrop(cohortEls.input, cohortEls.dz, loadCohortFile);
+  // Comme les autres zones : clic gauche = retélécharger le fichier chargé, clic droit = en mettre un autre.
+  wireDrop(cohortEls.input, cohortEls.dz, loadCohortFile, ()=> cohortSource);
   renderTemplateSelect();
 
   // Reprise du dernier fichier (resté sur cet appareil uniquement), même le lendemain.
@@ -4099,8 +4112,9 @@
     cohort = result;
     if(saved.channel === 'email' || saved.channel === 'appel'){ cohortChannel = saved.channel; renderCohortChannelSwitch(); }
     cohort.channel = cohortChannel;
+    cohortSource = saved.source && saved.source.dataUrl ? saved.source : null;
     cohortEls.dz.classList.add('loaded');
-    cohortEls.dz.title = i18n('dzReplaceTitle');
+    cohortEls.dz.title = cohortSource ? dzLoadedTitle() : i18n('dzReplaceTitle');
     cohortEls.dzLabel.textContent = i18n('dzRestoredLabel');
     cohortEls.dzFile.innerHTML = `<span class="dz-file-name">${escapeHtml(saved.fileName)}</span><span class="dz-file-meta">${escapeHtml(i18n('restoredMeta', {count: saved.rows.length, date: new Date(saved.savedAt).toLocaleString(dateLocale())}))}</span>`;
     renderCohorts();
