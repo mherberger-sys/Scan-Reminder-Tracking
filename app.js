@@ -2013,9 +2013,12 @@
     return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${r.toFixed(1)}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" />`;
   }
 
-  function legendShapeSvg(shape){
+  // Une couleur par canal (palette validée clair/sombre, cf. --series-* dans styles.css), en plus
+  // de la forme du point : les canaux ne se distinguent jamais par la couleur seule.
+  function seriesColor(channel){ return `var(--series-${channel || 'other'})`; }
+  function legendShapeSvg(shape, channel){
     const size = 14, r = 4.2;
-    const marker = shapeMarkerSvg(shape, size/2, size/2, r, 'var(--surface)', 'var(--accent)', 2);
+    const marker = shapeMarkerSvg(shape, size/2, size/2, r, 'var(--surface)', seriesColor(channel), 2);
     return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-hidden="true">${marker}</svg>`;
   }
 
@@ -2086,9 +2089,9 @@
           const areaPath = `${path} L${pts[pts.length-1].cx.toFixed(1)},${baseline} L${pts[0].cx.toFixed(1)},${baseline} Z`;
           linesSvg += `<path d="${areaPath}" fill="var(--accent-soft)" stroke="none" />`;
         }
-        linesSvg += `<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
+        linesSvg += `<path d="${path}" fill="none" stroke="${seriesColor(channel)}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />`;
       }
-      markersSvg += pts.map(p=> shapeMarkerSvg(shape, p.cx, p.cy, single?4:3.6, 'var(--surface)', 'var(--accent)', 2)).join('');
+      markersSvg += pts.map(p=> shapeMarkerSvg(shape, p.cx, p.cy, single?4:3.6, 'var(--surface)', seriesColor(channel), 2)).join('');
 
       if(single && pts.length){
         const last = pts[pts.length-1];
@@ -2134,7 +2137,7 @@
     dailyChartPoints = points;
     if(legend.length > 1){
       els.dailyChartExample.innerHTML = `<span class="channel-legend">${legend.map(l=>
-        `<span class="channel-legend-item">${legendShapeSvg(l.shape)}${escapeHtml(l.label)}</span>`
+        `<span class="channel-legend-item">${legendShapeSvg(l.shape, l.key)}${escapeHtml(l.label)}</span>`
       ).join('')}</span>`;
     } else if(legend.length === 1){
       const series = channelData[legend[0].key];
@@ -3680,7 +3683,11 @@
     callBTitle: document.getElementById('cohortCallBTitle'),
     callBBody: document.getElementById('cohortCallBBody'),
     exportBtn: document.getElementById('cohortExportBtn'),
+    template: document.getElementById('cohortTemplate'),
+    loadTemplatesBtn: document.getElementById('cohortLoadTemplatesBtn'),
+    manualFields: document.getElementById('cohortManualFields'),
   };
+  let cohortTemplates = [];   // brouillons Gmail proposés comme modèles : [{ id, subject, snippet }]
   let cohort = null;     // résultat du dernier fichier : { fileName, total, email, callA, callB, skipped }
   let cohortDrafts = {}; // index de lot → true une fois le brouillon créé
 
@@ -3881,6 +3888,7 @@
     renderCohorts();
   }
   wireDrop(cohortEls.input, cohortEls.dz, loadCohortFile);
+  renderTemplateSelect();
 
   // Reprise du dernier fichier après un rechargement (resté sur cet appareil uniquement).
   try{
@@ -3931,6 +3939,67 @@
     });
   }
 
+  // ---------------------------- Modèles = brouillons Gmail ----------------------------
+  // L'API Gmail n'expose pas les « Modèles » de Gmail : on propose à la place les brouillons de
+  // la personne. Le brouillon choisi est recopié tel quel (MIME brut : objet, HTML, images,
+  // pièces jointes), seuls ses destinataires sont remplacés par « moi » + le lot en Cci.
+  const TEMPLATE_HINT_RE = /mod[eè]le|template/i;
+  function gmailApi(path, token, opts){
+    return fetch('https://gmail.googleapis.com/gmail/v1/users/me/' + path, Object.assign({}, opts || {}, {
+      headers: Object.assign({ Authorization: 'Bearer ' + token }, (opts && opts.headers) || {}),
+    }));
+  }
+  function renderTemplateSelect(){
+    const prev = cohortEls.template.value;
+    cohortEls.template.innerHTML = `<option value="">${escapeHtml(i18n('cohortTemplateNone'))}</option>` +
+      cohortTemplates.map(t=> `<option value="${escapeAttr(t.id)}">${escapeHtml((t.subject || i18n('cohortTemplateNoSubject')) + (t.snippet ? ' — ' + t.snippet.slice(0, 60) : ''))}</option>`).join('');
+    cohortEls.template.value = cohortTemplates.some(t=> t.id === prev) ? prev : '';
+    cohortEls.manualFields.hidden = !!cohortEls.template.value;
+  }
+  cohortEls.template.addEventListener('change', ()=>{ cohortEls.manualFields.hidden = !!cohortEls.template.value; });
+  cohortEls.loadTemplatesBtn.addEventListener('click', async ()=>{
+    const tokenPromise = getGmailToken();
+    cohortEls.loadTemplatesBtn.disabled = true;
+    try{
+      const token = await tokenPromise;
+      const list = await (await gmailApi('drafts?maxResults=50', token)).json();
+      const ids = (list.drafts || []).map(d=> d.id);
+      const details = await mapLimit(ids, 6, async id=>{
+        const d = await (await gmailApi(`drafts/${id}?format=metadata&metadataHeaders=Subject`, token)).json();
+        const headers = (d.message && d.message.payload && d.message.payload.headers) || [];
+        const subject = (headers.find(h=> h.name.toLowerCase() === 'subject') || {}).value || '';
+        return { id, subject, snippet: (d.message && d.message.snippet) || '' };
+      });
+      // Les brouillons dont l'objet contient « modèle » / « template » en premier.
+      cohortTemplates = details.filter(Boolean).sort((a,b)=> (TEMPLATE_HINT_RE.test(b.subject) - TEMPLATE_HINT_RE.test(a.subject)));
+      renderTemplateSelect();
+      showToast(i18n('cohortTemplatesLoaded', { count: cohortTemplates.length }));
+    }catch(e){
+      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : 'cohortTemplatesFailed'));
+    }
+    cohortEls.loadTemplatesBtn.disabled = false;
+  });
+
+  // Base64url ⇄ chaîne « binaire » (un caractère par octet) : le MIME du modèle est manipulé
+  // octet par octet pour ne rien abîmer (encodages, pièces jointes).
+  function b64urlToBinary(b64){ return atob(b64.replace(/-/g, '+').replace(/_/g, '/')); }
+  function binaryToB64url(bin){ return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  const DROP_TEMPLATE_HEADERS = ['to','cc','bcc','message-id','date','in-reply-to','references'];
+  function mimeFromTemplate(rawMime, to, bccHeader){
+    const sep = rawMime.indexOf('\r\n\r\n') >= 0 ? '\r\n' : '\n';
+    const split = rawMime.indexOf(sep + sep);
+    const headPart = split >= 0 ? rawMime.slice(0, split) : rawMime;
+    const body = split >= 0 ? rawMime.slice(split + 2 * sep.length) : '';
+    // En-têtes « dépliés » (une ligne commençant par un espace continue la précédente).
+    const headers = [];
+    headPart.split(sep).forEach(line=>{
+      if(/^[ \t]/.test(line) && headers.length) headers[headers.length - 1] += sep + line;
+      else if(line) headers.push(line);
+    });
+    const kept = headers.filter(h=> !DROP_TEMPLATE_HEADERS.includes(h.slice(0, h.indexOf(':')).trim().toLowerCase()));
+    return [`To: ${to}`, bccHeader].concat(kept).join('\r\n') + '\r\n\r\n' + body;
+  }
+
   function mimeHeaderUtf8(text){ return '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(text))) + '?='; }
   function base64UrlUtf8(text){ return btoa(unescape(encodeURIComponent(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
 
@@ -3943,11 +4012,19 @@
     btn.disabled = true;
     try{
       const token = await tokenPromise;
+      // Une adresse par ligne (en-tête « plié ») : évite les lignes trop longues pour les serveurs mail.
+      const bccHeader = 'Bcc: ' + batch.join(',\r\n ');
+      const templateId = cohortEls.template.value;
+      let raw;
+      if(templateId){
+        const tpl = await (await gmailApi(`drafts/${templateId}?format=raw`, token)).json();
+        if(!tpl.message || !tpl.message.raw) throw new Error('template');
+        raw = binaryToB64url(mimeFromTemplate(b64urlToBinary(tpl.message.raw), currentUser.email, bccHeader));
+      }
       const subject = cohortEls.subject.value.trim();
       const mime = [
         `To: ${currentUser.email}`,
-        // Une adresse par ligne (en-tête « plié ») : évite les lignes trop longues pour les serveurs mail.
-        'Bcc: ' + batch.join(',\r\n '),
+        bccHeader,
         `Subject: ${subject ? mimeHeaderUtf8(subject) : ''}`,
         'MIME-Version: 1.0',
         'Content-Type: text/plain; charset=UTF-8',
@@ -3958,7 +4035,7 @@
       const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: { raw: base64UrlUtf8(mime) } }),
+        body: JSON.stringify({ message: { raw: raw || base64UrlUtf8(mime) } }),
       });
       if(res.status === 401){ gmailToken = null; throw new Error('expired'); }
       if(!res.ok) throw new Error('gmail-' + res.status);
@@ -3999,6 +4076,7 @@
     renderHomeGreeting();
     renderSyncStatus();
     renderCohorts();
+    renderTemplateSelect();
     layoutTopbar();
     if(activePage === 'team') renderTeamPage();
   }

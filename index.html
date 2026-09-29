@@ -526,10 +526,18 @@ try{
               <div class="table-scroll capped" id="cohortInvalidBody"></div>
             </details>
             <div class="cohort-draft-form">
+              <label for="cohortTemplate" class="filter-label" data-i18n="cohortTemplateLabel">Modèle d'email</label>
+              <div class="scorecard-select-row" style="max-width:720px;">
+                <select id="cohortTemplate" class="inline-select" style="flex:1;"></select>
+                <button class="ghost btn-small" id="cohortLoadTemplatesBtn" data-i18n="cohortLoadTemplatesBtn">Charger mes brouillons Gmail</button>
+              </div>
+              <p class="hint" style="margin:0;" data-i18n="cohortTemplateHint">Gmail ne donne pas accès à ses « Modèles » : enregistrez votre modèle comme brouillon Gmail (sans destinataire), chargez vos brouillons puis choisissez-le — son objet et son contenu (mise en forme, images, pièces jointes) sont repris dans chaque lot.</p>
+              <div id="cohortManualFields" class="cohort-draft-form">
               <label for="cohortSubject" class="filter-label" data-i18n="cohortSubjectLabel">Objet du brouillon (facultatif)</label>
               <input type="text" id="cohortSubject" class="save-input" style="width:100%;max-width:520px;">
               <label for="cohortBody" class="filter-label" data-i18n="cohortBodyLabel">Message (facultatif)</label>
               <textarea id="cohortBody" class="save-input cohort-textarea" rows="4"></textarea>
+              </div>
               <p class="hint" style="margin:0;" data-i18n="cohortDraftHint">Chaque lot de 499 adresses devient un brouillon Gmail : destinataire = vous, adresses des patients en Cci (BCC). Vous le relisez et l'envoyez depuis Gmail.</p>
             </div>
             <div id="cohortBatches" class="cohort-batches"></div>
