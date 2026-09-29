@@ -309,6 +309,11 @@ try{
     <div class="footer-row">
       <span class="count-note" id="sortNote" data-i18n="sortNoteDefault">Tri : non scannés en premier, days late décroissant.</span>
       <div class="footer-actions">
+        <select id="saveChannel" class="inline-select" data-i18n-title="saveChannelTitle" title="Canal de cette vérification">
+          <option value="" data-i18n="saveChannelAuto">Canal : d'après le nom</option>
+          <option value="appel" data-i18n="saveChannelCall">☎ Appel</option>
+          <option value="email" data-i18n="saveChannelEmail">✉ Email</option>
+        </select>
         <input type="text" id="saveName" class="save-input" spellcheck="false" data-i18n-title="saveNameTitle" title="Nom de cette vérification (utilisé dans l'historique)">
         <button class="ghost" id="addHistoryBtn" data-i18n="addHistoryBtnLabel">Ajouter à l'historique</button>
         <button class="ghost" id="copyBtn" data-i18n="copyBtnLabel">Copier le tableau (coller dans Excel)</button>
@@ -436,7 +441,7 @@ try{
         </div>
       </div>
     </div>
-    <div class="charts-grid">
+    <div class="charts-grid" id="aircallCard">
       <div class="chart-card">
         <p class="chart-title" data-i18n="aircallTitle">Appels Aircall — Voicemail drop &amp; scans</p>
         <div id="aircallPersonalControls">
@@ -492,24 +497,31 @@ try{
         <div class="chart-card">
           <p class="chart-title" data-i18n="cohortsTitle">Cohortes de relance</p>
           <p class="hint" style="margin:0;" data-i18n="cohortsIntro">Déposez l'export des patients en retard (CSV ou Excel) : l'app les répartit en cohortes Email et Appels selon leurs jours de retard et leur commitment level. Tout est traité dans votre navigateur — rien n'est enregistré sur le Drive.</p>
+          <div class="cohort-channel-row">
+            <span class="filter-label" data-i18n="cohortChannelLabel">Ce fichier est pour :</span>
+            <div class="seg-control" id="cohortChannelSwitch" role="group">
+              <button type="button" data-cohort-channel="email" data-i18n="cohortChannelEmail">✉ Email</button>
+              <button type="button" data-cohort-channel="appel" data-i18n="cohortChannelCall">☎ Appels</button>
+            </div>
+          </div>
           <label class="dropzone" id="dzCohort" for="fileCohort">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
             <span class="dz-label" id="dzCohortLabel" data-i18n="dzDefaultLabel">Déposer ou choisir un fichier (CSV ou Excel)</span>
             <span class="dz-file" id="dzCohortFile"></span>
           </label>
           <input type="file" id="fileCohort" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
-          <div class="cohort-rules">
-            <span class="pill neutral" data-i18n="cohortRuleEmail">Email : 2 à 90 jours de retard · tous commitment levels</span>
-            <span class="pill neutral" data-i18n="cohortRuleCall">Appels : 30 jours de retard ou moins</span>
-          </div>
+          <p class="hint" id="cohortFeedHint" style="margin:0;" data-i18n="cohortFeedHint">Les patients de la cohorte choisie sont aussi placés dans le Dashboard (liste des patients contactés) s'il est vide — le lendemain, il ne reste qu'à déposer l'export « scan yesterday ».</p>
         </div>
       </div>
     </section>
 
     <div id="cohortResults" hidden>
       <section class="tiles" id="cohortTiles"></section>
+      <div class="cohort-toolbar">
+        <button class="ghost btn-small" id="cohortExportBtn" data-i18n="cohortExportBtn">Exporter la cohorte (Excel)</button>
+      </div>
 
-      <section class="panel">
+      <section class="panel" id="cohortEmailPanel">
         <div class="panel-head">
           <span class="section-title" data-i18n="cohortEmailTitle">Cohorte Email</span>
           <span class="count-note" data-i18n="cohortRuleEmail">Email : 2 à 90 jours de retard · tous commitment levels</span>
@@ -548,11 +560,10 @@ try{
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel" id="cohortCallPanel">
         <div class="panel-head">
           <span class="section-title" data-i18n="cohortCallTitle">Cohorte Appels</span>
           <span class="count-note" data-i18n="cohortRuleCall">Appels : 30 jours de retard ou moins</span>
-          <button class="ghost btn-small" id="cohortExportBtn" data-i18n="cohortExportBtn">Exporter les cohortes (Excel)</button>
         </div>
         <div class="charts-grid">
           <div class="chart-card">

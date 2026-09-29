@@ -48,7 +48,7 @@
     }
   }
 
-  const state = { called:null, scanned:null, rows:null, demo:true, sortKey:'priority', sortDir:1, history:[], historyView:null, historySortKey:'date', historySortDir:-1, calledRecovered:false, scannedRecovered:false, aircallCalls:null, aircallRawCalls:null, calledFileMeta:null, scannedFileMeta:null, trendsChannel:'', doctorScope:null };
+  const state = { calledFromCohort:false, called:null, scanned:null, rows:null, demo:true, sortKey:'priority', sortDir:1, history:[], historyView:null, historySortKey:'date', historySortDir:-1, calledRecovered:false, scannedRecovered:false, aircallCalls:null, aircallRawCalls:null, calledFileMeta:null, scannedFileMeta:null, trendsChannel:'', doctorScope:null };
   const els = {
     file1: document.getElementById('file1'), file2: document.getElementById('file2'),
     dz1: document.getElementById('dz1'), dz2: document.getElementById('dz2'),
@@ -193,6 +193,13 @@
   wireExpandToggle(els.historyTableScroll, els.expandHistoryBtn);
 
   const CALLED_STORAGE_KEY = 'src_called_list_v1';
+  // La liste du jour J du Dashboard vient-elle de la page Cohortes ? (dans ce cas, un nouvel
+  // import dans Cohortes peut la remplacer ; un fichier déposé à la main, jamais).
+  const CALLED_FROM_COHORT_KEY = 'src_called_from_cohort_v1';
+  function setCalledFromCohort(on){
+    state.calledFromCohort = !!on;
+    try{ if(on) localStorage.setItem(CALLED_FROM_COHORT_KEY, '1'); else localStorage.removeItem(CALLED_FROM_COHORT_KEY); }catch(e){}
+  }
   const SCANNED_STORAGE_KEY = 'src_scanned_list_v1';
   const AIRCALL_STORAGE_KEY = 'src_aircall_calls_v1';
   const AIRCALL_RANGE_STORAGE_KEY = 'src_aircall_range_v1';
@@ -714,6 +721,7 @@
   }
 
   wireDrop(els.file1, els.dz1, async file=>{
+    setCalledFromCohort(false);
     const [data, dataUrl] = await Promise.all([parseFile(file), fileToDataUrl(file)]);
     if(!ensurePatientIdField(data)){
       const recovery = attemptHeaderlessRecovery(await parseFileRaw(file));
@@ -1259,6 +1267,9 @@
     // (voir « Minimisation des données patients »).
     const stats = computeStats(rows, getCalledOverride());
     const entry = { id: String(Date.now()), label, savedAt: new Date().toISOString(), rows: await Promise.all(rows.map(minimizeRow)), stats, calledFileMeta: stripMetaDataUrl(state.calledFileMeta), scannedFileMeta: stripMetaDataUrl(state.scannedFileMeta) };
+    // Canal choisi (ou repris de la cohorte) : enregistré avec la vérification, il prime sur le nom.
+    const channel = document.getElementById('saveChannel').value;
+    if(channel) entry.channel = channel;
     state.history.push(entry);
     if(state.history.length > HISTORY_MAX_ENTRIES){
       state.history.sort((a,b)=> a.savedAt.localeCompare(b.savedAt));
@@ -1383,7 +1394,7 @@
   function entriesAfterChannelFilter(){
     const entries = trendsScopeEntries();
     if(!state.trendsChannel) return entries;
-    return entries.filter(e=> inferCampaignChannel(e.label) === state.trendsChannel);
+    return entries.filter(e=> entryChannel(e) === state.trendsChannel);
   }
   function getFilteredHistoryEntries(){
     const entries = entriesAfterChannelFilter();
@@ -1401,7 +1412,7 @@
       // With a doctor scope active, skip entries that have no patients for that doctor at all —
       // otherwise they'd show up as a misleading 0% point instead of just not appearing that day.
       if(state.doctorScope && !(e.rows||[]).some(r=> r.doctor === state.doctorScope)) return;
-      const channel = inferCampaignChannel(e.label) || 'other';
+      const channel = entryChannel(e) || 'other';
       const key = dayKeyFromISO(effectiveDateForEntry(e));
       const map = byChannelDay[channel];
       if(aggregate){
@@ -1491,6 +1502,12 @@
     return Array.from(set).sort((a,b)=>a.localeCompare(b));
   }
 
+  // Canal d'une vérification : celui enregistré avec elle (choisi dans Cohortes ou au moment de
+  // l'ajout à l'historique), sinon déduit de son nom comme avant (anciennes entrées).
+  function entryChannel(entry){
+    if(entry && ['appel','email','sms'].includes(entry.channel)) return entry.channel;
+    return inferCampaignChannel(entry && entry.label);
+  }
   function inferCampaignChannel(label){
     const norm = normalizeAggressive(label);
     if(norm.includes('email') || norm.includes('mail')) return 'email';
@@ -1541,7 +1558,7 @@
         const entryRows = (entry.rows || []).filter(r=> r.doctor === doctorName);
         if(!entryRows.length) return null;
         const s = entryRows.filter(r=>r.scanned).length;
-        return { savedAt: effectiveDateForEntry(entry), label: entry.label, total: entryRows.length, scanned: s, pct: Math.round(s/entryRows.length*100), channel: inferCampaignChannel(entry.label) };
+        return { savedAt: effectiveDateForEntry(entry), label: entry.label, total: entryRows.length, scanned: s, pct: Math.round(s/entryRows.length*100), channel: entryChannel(entry) };
       })
       .filter(Boolean);
     const trends = computeDoctorTrends(timeline);
@@ -2315,6 +2332,8 @@
   els.resetBtn.addEventListener('click', ()=>{
     clearFileStorage(CALLED_STORAGE_KEY);
     clearFileStorage(SCANNED_STORAGE_KEY);
+    setCalledFromCohort(false);
+    document.getElementById('saveChannel').value = '';
     state.historyView = null;
     els.historyBanner.style.display = 'none';
     state.called = null; state.scanned = null; state.demo = true;
@@ -2533,9 +2552,23 @@
     return opts.join('');
   }
 
+  // Canaux sans aucune campagne dans le périmètre affiché : ni option de filtre, ni section
+  // Aircall (pour une personne qui n'a jamais fait d'appels, rien ne parle d'appels).
+  function renderChannelAvailability(){
+    const present = new Set(trendsScopeEntries().map(e=> entryChannel(e)).filter(Boolean));
+    Array.from(els.trendsChannelFilter.options).forEach(o=>{ if(o.value) o.hidden = !present.has(o.value); });
+    if(state.trendsChannel && !present.has(state.trendsChannel)){
+      state.trendsChannel = '';
+      els.trendsChannelFilter.value = '';
+    }
+    const aircallCard = document.getElementById('aircallCard');
+    if(aircallCard) aircallCard.hidden = !present.has('appel') && !(isPersonalScope() && state.aircallRawCalls);
+  }
+
   function renderTrendsControls(){
     const manager = canSeeTeamTab();
     if(!manager) trendsScope = 'me';
+    renderChannelAvailability();
     authEls.trendsScopeSelect.hidden = !manager;
     authEls.trendsScopeFixed.hidden = manager;
     if(manager){
@@ -2621,7 +2654,7 @@
   //    nom de collègue.
   //  - Vue « toutes les équipes » (manager/admin) : une ligne par équipe.
   //  - Vue d'une équipe (manager/admin) : une ligne par CX.
-  function channelMatches(e){ return !state.trendsChannel || inferCampaignChannel(e.label) === state.trendsChannel; }
+  function channelMatches(e){ return !state.trendsChannel || entryChannel(e) === state.trendsChannel; }
 
   function renderComparisonCard(){
     if(isPersonalScope()){
@@ -2629,10 +2662,11 @@
       if(!myTeam){ authEls.comparisonBody.innerHTML = `<p class="hint">${escapeHtml(i18n('comparisonNoTeam'))}</p>`; return; }
       const teamEntries = entriesForTeam(myTeam);
       const teamCxCount = new Set(teamEntries.map(e=> e._ownerEmail)).size;
-      const channels = [''].concat(['appel','email','sms'].filter(ch=> teamEntries.some(e=> inferCampaignChannel(e.label) === ch)));
+      // Seulement les canaux où j'ai fait au moins une campagne (pas de ligne « Email — 0/0 »).
+      const channels = [''].concat(['appel','email','sms'].filter(ch=> state.history.some(e=> entryChannel(e) === ch)));
       const rowsHtml = channels.map(ch=>{
-        const mine = sumRate(state.history.filter(e=> !ch || inferCampaignChannel(e.label) === ch));
-        const team = sumRate(teamEntries.filter(e=> !ch || inferCampaignChannel(e.label) === ch));
+        const mine = sumRate(state.history.filter(e=> !ch || entryChannel(e) === ch));
+        const team = sumRate(teamEntries.filter(e=> !ch || entryChannel(e) === ch));
         const delta = mine.called && team.called ? mine.pct - team.pct : null;
         const deltaHtml = delta === null ? '—' : `<span class="${delta > 0 ? 'delta-up' : delta < 0 ? 'delta-down' : ''}">${delta > 0 ? '+' : ''}${delta} pts</span>`;
         return `<tr><td>${escapeHtml(ch ? CHANNEL_LABEL(ch) : i18n('trendsChannelAll'))}</td>
@@ -3740,6 +3774,27 @@
     cohortEls.manualFields.hidden = !!selected;
   }
   let cohort = null;     // résultat du dernier fichier : { fileName, total, email, callA, callB, skipped }
+  // Canal choisi pour le fichier : seule la cohorte correspondante est affichée et utilisée.
+  const COHORT_CHANNEL_KEY = 'src_cohort_channel_v1';
+  let cohortChannel = 'email';
+  try{ const c = localStorage.getItem(COHORT_CHANNEL_KEY); if(c === 'email' || c === 'appel') cohortChannel = c; }catch(e){}
+  function renderCohortChannelSwitch(){
+    document.querySelectorAll('[data-cohort-channel]').forEach(b=> b.classList.toggle('active', b.getAttribute('data-cohort-channel') === cohortChannel));
+  }
+  document.getElementById('cohortChannelSwitch').addEventListener('click', e=>{
+    const btn = e.target.closest('[data-cohort-channel]');
+    if(!btn || btn.getAttribute('data-cohort-channel') === cohortChannel) return;
+    cohortChannel = btn.getAttribute('data-cohort-channel');
+    try{ localStorage.setItem(COHORT_CHANNEL_KEY, cohortChannel); }catch(e){}
+    renderCohortChannelSwitch();
+    if(cohort){
+      cohort.channel = cohortChannel;
+      saveCohortFile(cohort.fileName, cohort);
+      feedDashboardFromCohort();
+    }
+    renderCohorts();
+  });
+  renderCohortChannelSwitch();
   let cohortDrafts = {}; // index de lot → true une fois le brouillon créé
 
   // ---------------------------- Nettoyage des emails ----------------------------
@@ -3882,11 +3937,15 @@
     if(!cohort){ cohortEls.results.hidden = true; return; }
     cohortEls.results.hidden = false;
     const e = cohort.email;
-    cohortEls.tiles.innerHTML = `
-      <div class="tile"><span class="tile-label">${i18n('cohortTilePatients')}</span><span class="tile-value">${cohort.total}</span><span class="tile-sub">${escapeHtml(cohort.fileName)}</span></div>
-      <div class="tile"><span class="tile-label">${i18n('cohortTileEmail')}</span><span class="tile-value">${e.emails.length}</span><span class="tile-sub">${i18n('cohortTileEmailSub', {batches: e.batches.length})}</span></div>
-      <div class="tile"><span class="tile-label">${i18n('cohortTileCallA')}</span><span class="tile-value">${cohort.callA.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>
-      <div class="tile"><span class="tile-label">${i18n('cohortTileCallB')}</span><span class="tile-value">${cohort.callB.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>`;
+    const isEmail = cohortChannel === 'email';
+    document.getElementById('cohortEmailPanel').hidden = !isEmail;
+    document.getElementById('cohortCallPanel').hidden = isEmail;
+    const patientsTile = `<div class="tile"><span class="tile-label">${i18n('cohortTilePatients')}</span><span class="tile-value">${cohort.total}</span><span class="tile-sub">${escapeHtml(cohort.fileName)}</span></div>`;
+    cohortEls.tiles.innerHTML = patientsTile + (isEmail
+      ? `<div class="tile"><span class="tile-label">${i18n('cohortTileEmailPatients')}</span><span class="tile-value">${e.patients.length}</span><span class="tile-sub">${i18n('cohortRuleEmailShort')}</span></div>
+         <div class="tile"><span class="tile-label">${i18n('cohortTileEmail')}</span><span class="tile-value">${e.emails.length}</span><span class="tile-sub">${i18n('cohortTileEmailSub', {batches: e.batches.length})}</span></div>`
+      : `<div class="tile"><span class="tile-label">${i18n('cohortTileCallA')}</span><span class="tile-value">${cohort.callA.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>
+         <div class="tile"><span class="tile-label">${i18n('cohortTileCallB')}</span><span class="tile-value">${cohort.callB.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>`);
 
     cohortEls.emailSummary.innerHTML = cohort.emailKey
       ? i18n('cohortEmailSummary', { patients: e.patients.length, emails: e.emails.length, fixed: e.fixed.length, duplicates: e.duplicates, invalid: e.invalid.length, missing: e.missing })
@@ -3933,11 +3992,40 @@
       return;
     }
     cohort = result;
+    cohort.channel = cohortChannel;
     cohortDrafts = {};
     setDropzoneLoaded(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, file, data.length);
     cohortEls.dz.title = i18n('dzReplaceTitle');
     saveCohortFile(file.name, result);
+    feedDashboardFromCohort();
     renderCohorts();
+  }
+
+  // ---------------------------- Cohorte → Dashboard ----------------------------
+  // Les patients de la cohorte choisie deviennent la « liste des patients à contacter » du
+  // Dashboard, si celle-ci est vide (ou venait déjà d'une cohorte) : le lendemain, il ne reste
+  // qu'à déposer l'export « scan yesterday ». Le canal de la vérification est pré-rempli.
+  function cohortContactedRows(){
+    if(!cohort) return [];
+    if(cohortChannel === 'email') return cohort.email.patients.filter(p=> p.email).map(p=> p.raw);
+    return cohort.callA.concat(cohort.callB).map(p=> p.raw);
+  }
+  function feedDashboardFromCohort(){
+    if(!cohort || state.historyView) return;
+    if(state.called && !state.calledFromCohort) return;
+    const rows = cohortContactedRows().map(r=> Object.assign({}, r));
+    if(!rows.length) return;
+    const name = i18n(cohortChannel === 'email' ? 'cohortFeedNameEmail' : 'cohortFeedNameCall', { file: cohort.fileName });
+    state.called = rows;
+    state.calledRecovered = false;
+    state.calledFileMeta = { status: 'loaded', name, count: rows.length };
+    setCalledFromCohort(true);
+    setDropzoneLoaded(els.dz1, document.getElementById('dz1label'), els.dz1file, { name }, rows.length);
+    els.dz1.title = '';
+    saveFileToStorage(CALLED_STORAGE_KEY, name, rows, null);
+    document.getElementById('saveChannel').value = cohortChannel;
+    updateRunButton();
+    showToast(i18n('cohortFedDashboard', { count: rows.length }), 3500);
   }
 
   // ---------------------------- Mémorisation du fichier ----------------------------
@@ -3985,7 +4073,7 @@
     return value;
   }
   async function saveCohortFile(fileName, result){
-    const record = { fileName, rows: compactCohortRows(result), savedAt: new Date().toISOString() };
+    const record = { fileName, channel: result.channel || cohortChannel, rows: compactCohortRows(result), savedAt: new Date().toISOString() };
     try{ await idbSet(COHORT_STORAGE_KEY, record); try{ localStorage.removeItem(COHORT_STORAGE_KEY); }catch(e){} return; }
     catch(e){ /* IndexedDB indisponible (navigation privée…) : repli localStorage */ }
     try{ localStorage.setItem(COHORT_STORAGE_KEY, JSON.stringify(record)); }catch(e){ /* trop gros — pas grave */ }
@@ -4002,6 +4090,8 @@
     const result = buildCohorts(saved.rows, saved.fileName);
     if(result.error) return;
     cohort = result;
+    if(saved.channel === 'email' || saved.channel === 'appel'){ cohortChannel = saved.channel; renderCohortChannelSwitch(); }
+    cohort.channel = cohortChannel;
     cohortEls.dz.classList.add('loaded');
     cohortEls.dz.title = i18n('dzReplaceTitle');
     cohortEls.dzLabel.textContent = i18n('dzRestoredLabel');
@@ -4197,12 +4287,15 @@
     const header = ['patient_profile_id','patient','doctor_name','patient_commitment_level','days_late','phone','monitoring_url'];
     const toAoa = list=> [header].concat(list.map(p=> [p.id, p.name, p.doctor, p.commitment, p.days, p.phone, p.url]));
     const wb = XLSX.utils.book_new();
-    const emailSheet = [['email']].concat(cohort.email.emails.map(e=> [e]));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(emailSheet), sanitizeSheetName(i18n('cohortSheetEmail'), new Set()));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callA)), sanitizeSheetName(i18n('cohortSheetCallA'), new Set()));
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callB)), sanitizeSheetName(i18n('cohortSheetCallB'), new Set()));
+    if(cohortChannel === 'email'){
+      const emailSheet = [['email']].concat(cohort.email.emails.map(e=> [e]));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(emailSheet), sanitizeSheetName(i18n('cohortSheetEmail'), new Set()));
+    } else {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callA)), sanitizeSheetName(i18n('cohortSheetCallA'), new Set()));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callB)), sanitizeSheetName(i18n('cohortSheetCallB'), new Set()));
+    }
     const d = new Date();
-    saveFile(`cohortes-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    saveFile(`cohorte-${cohortChannel === 'email' ? 'email' : 'appels'}-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   });
 
   function refreshAuthI18n(){
@@ -4228,6 +4321,7 @@
 
   els.saveName.value = defaultSnapshotName();
   restoreCachedFile(CALLED_STORAGE_KEY, els.dz1, document.getElementById('dz1label'), els.dz1file, 'called', 'calledFileMeta');
+  try{ state.calledFromCohort = !!state.called && localStorage.getItem(CALLED_FROM_COHORT_KEY) === '1'; }catch(e){}
   restoreCachedFile(SCANNED_STORAGE_KEY, els.dz2, document.getElementById('dz2label'), els.dz2file, 'scanned', 'scannedFileMeta');
   restoreCachedFile(AIRCALL_STORAGE_KEY, els.dzAircall, els.dzAircallLabel, els.dzAircallFile, 'aircallRawCalls');
   (async ()=>{

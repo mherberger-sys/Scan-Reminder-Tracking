@@ -619,3 +619,10 @@ body.signed-in.on-home .view-as-banner{top:66px;}
 body.privacy-mode #cohortResults, body.privacy-mode #dzCohortFile{filter:blur(6px);user-select:none;}
 
 .nowrap-btn{white-space:nowrap;flex:none;}
+.cohort-channel-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.seg-control{display:inline-flex;border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;background:var(--bg);}
+.seg-control button{font-family:inherit;font-size:.84rem;font-weight:700;color:var(--muted);background:none;border:none;border-radius:7px;padding:8px 16px;cursor:pointer;}
+.seg-control button:hover{color:var(--ink);}
+.seg-control button.active{background:var(--accent);color:#fff;}
+.seg-control button.active[data-cohort-channel="email"]{background:var(--series-email);}
+.cohort-toolbar{display:flex;justify-content:flex-end;}
