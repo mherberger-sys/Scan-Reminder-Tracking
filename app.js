@@ -1047,10 +1047,12 @@
     return `scan-verifier-${dd}-${mm}-${yy}`;
   }
 
-  function showToast(msg){
+  let toastTimer = null;
+  function showToast(msg, durationMs){
     els.toast.textContent = msg;
     els.toast.classList.add('show');
-    setTimeout(()=>els.toast.classList.remove('show'), 1800);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>els.toast.classList.remove('show'), durationMs || 1800);
   }
 
   function saveViaBrowserDownload(filename, content, mimeType){
@@ -2710,6 +2712,7 @@
     document.getElementById('topbarTools').hidden = false;
     document.getElementById('gateLangSwitch').hidden = true;
     document.body.classList.add('signed-in');
+    loadCohortSender();
     renderUserChip();
     requestAnimationFrame(layoutTopbar);
   }
@@ -3686,7 +3689,28 @@
     template: document.getElementById('cohortTemplate'),
     loadTemplatesBtn: document.getElementById('cohortLoadTemplatesBtn'),
     manualFields: document.getElementById('cohortManualFields'),
+    from: document.getElementById('cohortFrom'),
   };
+  // Expéditeur des brouillons, mémorisé par compte sur l'appareil. Valeur proposée d'office pour
+  // les comptes qui envoient depuis une adresse partagée (alias « Envoyer en tant que » Gmail).
+  const COHORT_FROM_STORAGE_PREFIX = 'src_cohort_from_v1:';
+  const DEFAULT_COHORT_SENDERS = { 'm.herberger@dental-monitoring.com': 'support+dmeu2@dental-monitoring.com' };
+  function cohortSender(){
+    // Le « + » est permis ici (alias d'envoi comme support+dmeu2@…), contrairement aux adresses
+    // patients où il est retiré.
+    const v = cohortEls.from.value.trim().toLowerCase();
+    return /^[a-z0-9._%'+-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(v) ? v : (currentUser ? currentUser.email : '');
+  }
+  function loadCohortSender(){
+    if(!currentUser) return;
+    let v = null;
+    try{ v = localStorage.getItem(COHORT_FROM_STORAGE_PREFIX + currentUser.email); }catch(e){}
+    cohortEls.from.value = v !== null ? v : (DEFAULT_COHORT_SENDERS[currentUser.email] || '');
+    cohortEls.from.placeholder = currentUser.email;
+  }
+  cohortEls.from.addEventListener('change', ()=>{
+    try{ if(currentUser) localStorage.setItem(COHORT_FROM_STORAGE_PREFIX + currentUser.email, cohortEls.from.value.trim()); }catch(e){}
+  });
   let cohortTemplates = [];   // brouillons Gmail proposés comme modèles : [{ id, subject, snippet }]
   let cohort = null;     // résultat du dernier fichier : { fileName, total, email, callA, callB, skipped }
   let cohortDrafts = {}; // index de lot → true une fois le brouillon créé
@@ -3962,7 +3986,14 @@
     cohortEls.loadTemplatesBtn.disabled = true;
     try{
       const token = await tokenPromise;
-      const list = await (await gmailApi('drafts?maxResults=50', token)).json();
+      const listRes = await gmailApi('drafts?maxResults=50', token);
+      if(!listRes.ok){
+        let reason = '';
+        try{ reason = JSON.stringify(await listRes.json()); }catch(e){}
+        if(listRes.status === 401) gmailToken = null;
+        throw new Error(listRes.status === 403 && /accessNotConfigured|SERVICE_DISABLED|has not been used|disabled/i.test(reason) ? 'api-disabled' : 'gmail-' + listRes.status);
+      }
+      const list = await listRes.json();
       const ids = (list.drafts || []).map(d=> d.id);
       const details = await mapLimit(ids, 6, async id=>{
         const d = await (await gmailApi(`drafts/${id}?format=metadata&metadataHeaders=Subject`, token)).json();
@@ -3972,10 +4003,19 @@
       });
       // Les brouillons dont l'objet contient « modèle » / « template » en premier.
       cohortTemplates = details.filter(Boolean).sort((a,b)=> (TEMPLATE_HINT_RE.test(b.subject) - TEMPLATE_HINT_RE.test(a.subject)));
+      // Modèles chargés : le premier est choisi d'office, ce qui masque objet/message manuels.
+      if(cohortTemplates.length) cohortEls.template.value = '';
       renderTemplateSelect();
-      showToast(i18n('cohortTemplatesLoaded', { count: cohortTemplates.length }));
+      if(cohortTemplates.length){
+        cohortEls.template.value = cohortTemplates[0].id;
+        cohortEls.manualFields.hidden = true;
+        showToast(i18n('cohortTemplatesLoaded', { count: cohortTemplates.length }));
+      } else {
+        showToast(i18n('cohortNoDraftsFound'), 6000);
+      }
     }catch(e){
-      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : 'cohortTemplatesFailed'));
+      const key = /access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : e.message === 'api-disabled' ? 'cohortGmailApiDisabled' : 'cohortTemplatesFailed';
+      showToast(i18n(key), 7000);
     }
     cohortEls.loadTemplatesBtn.disabled = false;
   });
@@ -3984,8 +4024,8 @@
   // octet par octet pour ne rien abîmer (encodages, pièces jointes).
   function b64urlToBinary(b64){ return atob(b64.replace(/-/g, '+').replace(/_/g, '/')); }
   function binaryToB64url(bin){ return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
-  const DROP_TEMPLATE_HEADERS = ['to','cc','bcc','message-id','date','in-reply-to','references'];
-  function mimeFromTemplate(rawMime, to, bccHeader){
+  const DROP_TEMPLATE_HEADERS = ['from','to','cc','bcc','message-id','date','in-reply-to','references'];
+  function mimeFromTemplate(rawMime, from, bccHeader){
     const sep = rawMime.indexOf('\r\n\r\n') >= 0 ? '\r\n' : '\n';
     const split = rawMime.indexOf(sep + sep);
     const headPart = split >= 0 ? rawMime.slice(0, split) : rawMime;
@@ -3997,7 +4037,7 @@
       else if(line) headers.push(line);
     });
     const kept = headers.filter(h=> !DROP_TEMPLATE_HEADERS.includes(h.slice(0, h.indexOf(':')).trim().toLowerCase()));
-    return [`To: ${to}`, bccHeader].concat(kept).join('\r\n') + '\r\n\r\n' + body;
+    return [`From: ${from}`, `To: ${from}`, bccHeader].concat(kept).join('\r\n') + '\r\n\r\n' + body;
   }
 
   function mimeHeaderUtf8(text){ return '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(text))) + '?='; }
@@ -4019,11 +4059,12 @@
       if(templateId){
         const tpl = await (await gmailApi(`drafts/${templateId}?format=raw`, token)).json();
         if(!tpl.message || !tpl.message.raw) throw new Error('template');
-        raw = binaryToB64url(mimeFromTemplate(b64urlToBinary(tpl.message.raw), currentUser.email, bccHeader));
+        raw = binaryToB64url(mimeFromTemplate(b64urlToBinary(tpl.message.raw), cohortSender(), bccHeader));
       }
       const subject = cohortEls.subject.value.trim();
       const mime = [
-        `To: ${currentUser.email}`,
+        `From: ${cohortSender()}`,
+        `To: ${cohortSender()}`,
         bccHeader,
         `Subject: ${subject ? mimeHeaderUtf8(subject) : ''}`,
         'MIME-Version: 1.0',
@@ -4038,12 +4079,16 @@
         body: JSON.stringify({ message: { raw: raw || base64UrlUtf8(mime) } }),
       });
       if(res.status === 401){ gmailToken = null; throw new Error('expired'); }
-      if(!res.ok) throw new Error('gmail-' + res.status);
+      if(!res.ok){
+        let reason = '';
+        try{ reason = JSON.stringify(await res.json()); }catch(e){}
+        throw new Error(res.status === 403 && /accessNotConfigured|SERVICE_DISABLED|has not been used|disabled/i.test(reason) ? 'api-disabled' : 'gmail-' + res.status);
+      }
       cohortDrafts[index] = true;
       showToast(i18n('cohortDraftCreated', { n: index + 1, count: batch.length }));
       renderCohorts();
     }catch(e){
-      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : 'cohortDraftFailed'));
+      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : e.message === 'api-disabled' ? 'cohortGmailApiDisabled' : 'cohortDraftFailed'), 7000);
       btn.disabled = false;
     }
   }

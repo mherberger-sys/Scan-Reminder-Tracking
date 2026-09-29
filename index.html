@@ -526,6 +526,9 @@ try{
               <div class="table-scroll capped" id="cohortInvalidBody"></div>
             </details>
             <div class="cohort-draft-form">
+              <label for="cohortFrom" class="filter-label" data-i18n="cohortFromLabel">Expéditeur</label>
+              <input type="email" id="cohortFrom" class="save-input" style="width:100%;max-width:520px;" autocomplete="off">
+              <p class="hint" style="margin:0;" data-i18n="cohortFromHint">Adresse d'envoi des brouillons (vide = ton adresse). Elle doit être configurée dans Gmail → Paramètres → Comptes → « Envoyer des e-mails en tant que ». Mémorisée pour ton compte.</p>
               <label for="cohortTemplate" class="filter-label" data-i18n="cohortTemplateLabel">Modèle d'email</label>
               <div class="scorecard-select-row" style="max-width:720px;">
                 <select id="cohortTemplate" class="inline-select" style="flex:1;"></select>
