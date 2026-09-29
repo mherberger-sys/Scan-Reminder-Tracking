@@ -1195,6 +1195,41 @@
     a.remove();
   }
 
+  // ---------------------------- Copies locales des fichiers importés ----------------------------
+  // Les 2 fichiers d'une vérification (données patients) ne vont plus sur le Drive : une copie
+  // est gardée uniquement dans le navigateur de cet appareil (IndexedDB), pour pouvoir les
+  // retélécharger depuis « Fichiers importés ». Personne d'autre n'y a accès.
+  const localSourceKeys = new Set();
+  function localSourceKey(entryId, field){ return `source:${entryId}:${field}`; }
+  async function saveLocalSources(entry, metas){
+    for(const field of ['calledFileMeta', 'scannedFileMeta']){
+      const meta = metas[field];
+      if(!meta || !meta.dataUrl) continue;
+      const key = localSourceKey(entry.id, field);
+      try{ await idbSet(key, { name: meta.name, dataUrl: meta.dataUrl }); localSourceKeys.add(key); }catch(e){ /* stockage indisponible — pas de copie */ }
+    }
+    renderImportedFilesTable();
+  }
+  function deleteLocalSources(entryId){
+    ['calledFileMeta', 'scannedFileMeta'].forEach(field=>{
+      const key = localSourceKey(entryId, field);
+      if(!localSourceKeys.has(key)) return;
+      localSourceKeys.delete(key);
+      idbDelete(key).catch(()=>{});
+    });
+  }
+  async function loadLocalSourceKeys(){
+    try{ (await idbKeys()).forEach(k=>{ if(String(k).startsWith('source:')) localSourceKeys.add(String(k)); }); }catch(e){}
+    renderImportedFilesTable();
+  }
+  async function downloadLocalSource(entryId, field){
+    try{
+      const copy = await idbGet(localSourceKey(entryId, field));
+      if(copy && copy.dataUrl){ downloadDataUrl(copy.dataUrl, copy.name); return true; }
+    }catch(e){}
+    return false;
+  }
+
   function renderImportedFilesTable(){
     if(!els.importedFilesBody) return;
     if(!state.history.length){
@@ -1204,7 +1239,7 @@
     const sorted = state.history.slice().sort((a,b)=> b.savedAt.localeCompare(a.savedAt));
     const fileCell = (entry, field, meta) => {
       if(!meta || !meta.name) return `<span class="hint">—</span>`;
-      const downloadBtn = (meta.dataUrl || meta.sourceFileId)
+      const downloadBtn = (meta.dataUrl || meta.sourceFileId || localSourceKeys.has(localSourceKey(entry.id, field)))
         ? `<button class="link-btn" data-download-imported="${entry.id}" data-field="${field}" title="${escapeAttr(i18n('downloadFileTitle', {name: meta.name}))}">${i18n('downloadBtnLabel')}</button>`
         : '';
       const rowsText = meta.status === 'warn' ? i18n('rowsCountInferred', {count: meta.count}) : i18n('rowsCountPlain', {count: meta.count});
@@ -1217,10 +1252,13 @@
         <td>${fileCell(entry, 'scannedFileMeta', entry.scannedFileMeta)}</td>
       </tr>`).join('');
     els.importedFilesBody.querySelectorAll('[data-download-imported]').forEach(btn=>{
-      btn.addEventListener('click', ()=>{
+      btn.addEventListener('click', async ()=>{
         const entry = state.history.find(e=> e.id === btn.getAttribute('data-download-imported'));
-        const meta = entry && entry[btn.getAttribute('data-field')];
-        if(meta) downloadEntrySource(meta);
+        const field = btn.getAttribute('data-field');
+        const meta = entry && entry[field];
+        if(!meta) return;
+        if(localSourceKeys.has(localSourceKey(entry.id, field)) && await downloadLocalSource(entry.id, field)) return;
+        downloadEntrySource(meta);
       });
     });
   }
@@ -1269,6 +1307,7 @@
     // Canal choisi (ou repris de la cohorte) : enregistré avec la vérification, il prime sur le nom.
     const channel = document.getElementById('saveChannel').value;
     if(channel) entry.channel = channel;
+    saveLocalSources(entry, { calledFileMeta: state.calledFileMeta, scannedFileMeta: state.scannedFileMeta });
     state.history.push(entry);
     if(state.history.length > HISTORY_MAX_ENTRIES){
       state.history.sort((a,b)=> a.savedAt.localeCompare(b.savedAt));
@@ -1315,6 +1354,7 @@
     if(!removed || !confirm(i18n('confirmDeleteEntry', {label: removed.label}))) return;
     state.history = state.history.filter(e=>e.id !== id);
     trashEntrySources(removed);
+    deleteLocalSources(id);
     saveHistory();
     if(state.historyView && state.historyView.id === id) exitHistoryView();
     renderHistory();
@@ -3633,55 +3673,6 @@
     wire('data-member-role-email', 'role', 'toastRoleUpdated', 'toastRoleUpdateFailed');
   }
 
-  // Nettoyage (admin) : réécrit tous les fichiers de données du Drive dans leur version minimisée
-  // et met à la corbeille les copies de fichiers d'origine (source-…). Chacun est aussi nettoyé
-  // automatiquement à sa prochaine connexion ; ce bouton le fait tout de suite pour tout le monde.
-  async function purgePatientData(){
-    if(!isAdmin()) return;
-    if(syncDirty || syncInFlight){ showToast(i18n('toastWaitSync')); return; }
-    if(!confirm(i18n('confirmPurge'))) return;
-    const btn = document.getElementById('purgeDataBtn');
-    const status = document.getElementById('purgeDataStatus');
-    btn.disabled = true;
-    status.textContent = i18n('purgeRunning');
-    let rewritten = 0, trashed = 0, failed = 0;
-    try{
-      const files = await listFolderFiles();
-      for(const f of files){
-        if(f.name === TEAM_DIRECTORY_FILENAME) continue;
-        const props = f.properties || {};
-        try{
-          if(props.kind === 'source'){
-            const res = await driveFetch(`${DRIVE_API}/${f.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ trashed: true }) });
-            if(res.ok) trashed++; else failed++;
-            continue;
-          }
-          const content = await (await driveFetch(`${DRIVE_API}/${f.id}?alt=media`)).json();
-          const entries = Array.isArray(content) ? content : content && content.entries;
-          if(!Array.isArray(entries)) continue;
-          const valid = entries.filter(e=> e && Array.isArray(e.rows));
-          const { entries: minimized, changed } = await minimizeEntries(valid);
-          if(!changed) continue;
-          const byId = new Map(minimized.map(e=> [String(e.id), e]));
-          const nextEntries = entries.map(e=> (e && byId.get(String(e.id))) || e);
-          const payload = JSON.stringify(Array.isArray(content) ? nextEntries : Object.assign({}, content, { entries: nextEntries, updatedAt: new Date().toISOString() }));
-          const res = await driveFetch(`${DRIVE_UPLOAD_API}/${f.id}?uploadType=media`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: payload });
-          if(res.ok) rewritten++; else failed++;
-        }catch(e){
-          if(e && e.authExpired) throw e;
-          failed++;
-        }
-      }
-      status.textContent = i18n(failed ? 'purgeDoneWithErrors' : 'purgeDone', { rewritten, trashed, failed });
-      await reloadPool();
-    }catch(e){
-      if(e && e.authExpired){ handleSessionExpired(); return; }
-      status.textContent = i18n('purgeFailed');
-    }
-    btn.disabled = false;
-  }
-  document.getElementById('purgeDataBtn').addEventListener('click', purgePatientData);
-
   // =====================================================================================
   // Cohortes : un export de patients (CSV/Excel) → cohorte Email + 2 listes d'appels.
   // Tout est calculé dans le navigateur ; rien n'est envoyé sur le Drive. Seul le brouillon
@@ -4062,6 +4053,24 @@
     });
     db.close();
   }
+  async function idbKeys(){
+    const db = await idbOpen();
+    const keys = await new Promise((resolve, reject)=>{
+      const req = db.transaction('kv', 'readonly').objectStore('kv').getAllKeys();
+      req.onsuccess = ()=> resolve(req.result || []); req.onerror = ()=> reject(req.error);
+    });
+    db.close();
+    return keys;
+  }
+  async function idbDelete(key){
+    const db = await idbOpen();
+    await new Promise((resolve, reject)=>{
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').delete(key);
+      tx.oncomplete = resolve; tx.onerror = ()=> reject(tx.error);
+    });
+    db.close();
+  }
   async function idbGet(key){
     const db = await idbOpen();
     const value = await new Promise((resolve, reject)=>{
@@ -4335,6 +4344,7 @@
   updateRunButton();
   state.history = [];
   renderHistory();
+  loadLocalSourceKeys();
   runCrossReference();
   try{
     if(isReloadNavigation()){
