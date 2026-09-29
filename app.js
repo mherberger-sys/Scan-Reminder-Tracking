@@ -3678,11 +3678,13 @@
   // Tout est calculé dans le navigateur ; rien n'est envoyé sur le Drive. Seul le brouillon
   // Gmail (lots de 499 adresses en Cci) part vers la boîte Gmail de la personne connectée.
   //   - Email  : 2 à 90 jours de retard, tous commitment levels, emails nettoyés et dédoublonnés ;
-  //   - Appels : 30 jours de retard ou moins, en 2 listes — Involved + Dedicated / tout le reste.
+  //   - Appels : 2 listes — prioritaire = Involved + Dedicated à 30 jours de retard ou moins ;
+  //              autres = tous les autres patients jusqu'à 80 jours de retard.
   // =====================================================================================
   const COHORT_EMAIL_MIN_DAYS = 2;
   const COHORT_EMAIL_MAX_DAYS = 90;
   const COHORT_CALL_MAX_DAYS = 30;
+  const COHORT_CALL_OTHERS_MAX_DAYS = 80;
   const COHORT_BATCH_SIZE = 499;
   const COHORT_CALL_A_LEVELS = ['involved', 'dedicated'];
   const COHORT_STORAGE_KEY = 'src_cohort_file_v1';
@@ -3903,15 +3905,16 @@
     const batches = [];
     for(let i = 0; i < emails.length; i += COHORT_BATCH_SIZE) batches.push(emails.slice(i, i + COHORT_BATCH_SIZE));
 
-    // --- Appels : 30 jours ou moins, 2 listes selon le commitment level ---
-    const callPatients = withDays.filter(p=> p.days <= COHORT_CALL_MAX_DAYS).sort((a,b)=> b.days - a.days);
-    const isA = p=> COHORT_CALL_A_LEVELS.includes(p.commitment.toLowerCase());
+    // --- Appels : prioritaire (Involved + Dedicated, ≤ 30 j) / tous les autres (≤ 80 j) ---
+    const byDaysDesc = (a,b)=> b.days - a.days;
+    const isA = p=> COHORT_CALL_A_LEVELS.includes(p.commitment.toLowerCase()) && p.days <= COHORT_CALL_MAX_DAYS;
+    const callA = withDays.filter(isA).sort(byDaysDesc);
+    const callB = withDays.filter(p=> !isA(p) && p.days <= COHORT_CALL_OTHERS_MAX_DAYS).sort(byDaysDesc);
 
     return {
       fileName, total: patients.length, noDays: patients.length - withDays.length, emailKey, patients,
       email: { patients: emailPatients, emails, batches, fixed, invalid, duplicates, missing },
-      callA: callPatients.filter(isA),
-      callB: callPatients.filter(p=> !isA(p)),
+      callA, callB,
     };
   }
 
@@ -3942,7 +3945,7 @@
       ? `<div class="tile"><span class="tile-label">${i18n('cohortTileEmailPatients')}</span><span class="tile-value">${e.patients.length}</span><span class="tile-sub">${i18n('cohortRuleEmailShort')}</span></div>
          <div class="tile"><span class="tile-label">${i18n('cohortTileEmail')}</span><span class="tile-value">${e.emails.length}</span><span class="tile-sub">${i18n('cohortTileEmailSub', {batches: e.batches.length})}</span></div>`
       : `<div class="tile"><span class="tile-label">${i18n('cohortTileCallA')}</span><span class="tile-value">${cohort.callA.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>
-         <div class="tile"><span class="tile-label">${i18n('cohortTileCallB')}</span><span class="tile-value">${cohort.callB.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>`);
+         <div class="tile"><span class="tile-label">${i18n('cohortTileCallB')}</span><span class="tile-value">${cohort.callB.length}</span><span class="tile-sub">${i18n('cohortTileCallBSub')}</span></div>`);
 
     cohortEls.emailSummary.innerHTML = cohort.emailKey
       ? i18n('cohortEmailSummary', { patients: e.patients.length, emails: e.emails.length, fixed: e.fixed.length, duplicates: e.duplicates, invalid: e.invalid.length, missing: e.missing })
