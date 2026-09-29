@@ -3707,11 +3707,38 @@
     try{ v = localStorage.getItem(COHORT_FROM_STORAGE_PREFIX + currentUser.email); }catch(e){}
     cohortEls.from.value = v !== null ? v : (DEFAULT_COHORT_SENDERS[currentUser.email] || '');
     cohortEls.from.placeholder = currentUser.email;
+    restoreCohortTemplates();
   }
   cohortEls.from.addEventListener('change', ()=>{
     try{ if(currentUser) localStorage.setItem(COHORT_FROM_STORAGE_PREFIX + currentUser.email, cohortEls.from.value.trim()); }catch(e){}
   });
   let cohortTemplates = [];   // brouillons Gmail proposés comme modèles : [{ id, subject, snippet }]
+  let cohortTemplateRaws = {}; // copie du MIME de chaque modèle déjà utilisé (repli si le brouillon disparaît de Gmail)
+  // Modèles mémorisés par compte sur l'appareil : liste, choix courant et copies — ainsi un
+  // modèle chargé une fois reste disponible aux ouvertures suivantes, sans recharger Gmail.
+  const COHORT_TEMPLATES_STORAGE_PREFIX = 'src_cohort_templates_v1:';
+  function saveCohortTemplates(){
+    if(!currentUser) return;
+    const data = { templates: cohortTemplates, selected: cohortEls.template.value, raws: cohortTemplateRaws };
+    try{ localStorage.setItem(COHORT_TEMPLATES_STORAGE_PREFIX + currentUser.email, JSON.stringify(data)); }
+    catch(e){
+      // Trop gros (modèles avec pièces jointes) : on garde au moins la liste et le choix.
+      try{ localStorage.setItem(COHORT_TEMPLATES_STORAGE_PREFIX + currentUser.email, JSON.stringify(Object.assign(data, { raws: {} }))); }catch(e2){}
+    }
+  }
+  function restoreCohortTemplates(){
+    cohortTemplates = []; cohortTemplateRaws = {};
+    let data = null;
+    try{ data = currentUser ? JSON.parse(localStorage.getItem(COHORT_TEMPLATES_STORAGE_PREFIX + currentUser.email) || 'null') : null; }catch(e){}
+    if(data && Array.isArray(data.templates)){
+      cohortTemplates = data.templates;
+      cohortTemplateRaws = data.raws || {};
+    }
+    renderTemplateSelect();
+    const selected = data && cohortTemplates.some(t=> t.id === data.selected) ? data.selected : '';
+    cohortEls.template.value = selected;
+    cohortEls.manualFields.hidden = !!selected;
+  }
   let cohort = null;     // résultat du dernier fichier : { fileName, total, email, callA, callB, skipped }
   let cohortDrafts = {}; // index de lot → true une fois le brouillon créé
 
@@ -3976,13 +4003,16 @@
   function renderTemplateSelect(){
     const prev = cohortEls.template.value;
     cohortEls.template.innerHTML = `<option value="">${escapeHtml(i18n('cohortTemplateNone'))}</option>` +
-      cohortTemplates.map(t=> `<option value="${escapeAttr(t.id)}">${escapeHtml((t.subject || i18n('cohortTemplateNoSubject')) + (t.snippet ? ' — ' + t.snippet.slice(0, 60) : ''))}</option>`).join('');
+      cohortTemplates.map(t=> `<option value="${escapeAttr(t.id)}">${escapeHtml((t.subject || i18n('cohortTemplateNoSubject')) + (t.cachedOnly ? ' ' + i18n('cohortTemplateCachedOnly') : '') + (t.snippet ? ' — ' + t.snippet.slice(0, 60) : ''))}</option>`).join('');
     cohortEls.template.value = cohortTemplates.some(t=> t.id === prev) ? prev : '';
     cohortEls.manualFields.hidden = !!cohortEls.template.value;
+    cohortEls.loadTemplatesBtn.textContent = i18n(cohortTemplates.length ? 'cohortReloadTemplatesBtn' : 'cohortLoadTemplatesBtn');
   }
-  cohortEls.template.addEventListener('change', ()=>{ cohortEls.manualFields.hidden = !!cohortEls.template.value; });
+  cohortEls.template.addEventListener('change', ()=>{ cohortEls.manualFields.hidden = !!cohortEls.template.value; saveCohortTemplates(); });
   cohortEls.loadTemplatesBtn.addEventListener('click', async ()=>{
     const tokenPromise = getGmailToken();
+    const previousSelection = cohortEls.template.value;
+    const previousTemplates = cohortTemplates.slice();
     cohortEls.loadTemplatesBtn.disabled = true;
     try{
       const token = await tokenPromise;
@@ -4003,12 +4033,19 @@
       });
       // Les brouillons dont l'objet contient « modèle » / « template » en premier.
       cohortTemplates = details.filter(Boolean).sort((a,b)=> (TEMPLATE_HINT_RE.test(b.subject) - TEMPLATE_HINT_RE.test(a.subject)));
-      // Modèles chargés : le premier est choisi d'office, ce qui masque objet/message manuels.
-      if(cohortTemplates.length) cohortEls.template.value = '';
+      // Un modèle déjà utilisé dont le brouillon a disparu de Gmail reste proposé grâce à sa copie.
+      previousTemplates.forEach(t=>{
+        if(!cohortTemplates.some(n=> n.id === t.id) && cohortTemplateRaws[t.id]) cohortTemplates.push(Object.assign({}, t, { cachedOnly: true }));
+      });
+      Object.keys(cohortTemplateRaws).forEach(id=>{ if(!cohortTemplates.some(t=> t.id === id)) delete cohortTemplateRaws[id]; });
       renderTemplateSelect();
+      // Modèles chargés : on garde le choix précédent s'il existe encore, sinon le 1er — ce qui
+      // masque l'objet et le message manuels.
       if(cohortTemplates.length){
-        cohortEls.template.value = cohortTemplates[0].id;
+        const keep = previousSelection && cohortTemplates.some(t=> t.id === previousSelection) ? previousSelection : cohortTemplates[0].id;
+        cohortEls.template.value = keep;
         cohortEls.manualFields.hidden = true;
+        saveCohortTemplates();
         showToast(i18n('cohortTemplatesLoaded', { count: cohortTemplates.length }));
       } else {
         showToast(i18n('cohortNoDraftsFound'), 6000);
@@ -4057,9 +4094,17 @@
       const templateId = cohortEls.template.value;
       let raw;
       if(templateId){
-        const tpl = await (await gmailApi(`drafts/${templateId}?format=raw`, token)).json();
-        if(!tpl.message || !tpl.message.raw) throw new Error('template');
-        raw = binaryToB64url(mimeFromTemplate(b64urlToBinary(tpl.message.raw), cohortSender(), bccHeader));
+        // Version à jour depuis Gmail si le brouillon existe encore, sinon la copie mémorisée.
+        let tplRaw = null;
+        const tplRes = await gmailApi(`drafts/${templateId}?format=raw`, token);
+        if(tplRes.ok){
+          const tpl = await tplRes.json();
+          tplRaw = tpl.message && tpl.message.raw;
+          if(tplRaw){ cohortTemplateRaws[templateId] = tplRaw; saveCohortTemplates(); }
+        }
+        if(!tplRaw) tplRaw = cohortTemplateRaws[templateId];
+        if(!tplRaw) throw new Error('template-gone');
+        raw = binaryToB64url(mimeFromTemplate(b64urlToBinary(tplRaw), cohortSender(), bccHeader));
       }
       const subject = cohortEls.subject.value.trim();
       const mime = [
@@ -4088,7 +4133,7 @@
       showToast(i18n('cohortDraftCreated', { n: index + 1, count: batch.length }));
       renderCohorts();
     }catch(e){
-      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : e.message === 'api-disabled' ? 'cohortGmailApiDisabled' : 'cohortDraftFailed'), 7000);
+      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : e.message === 'api-disabled' ? 'cohortGmailApiDisabled' : e.message === 'template-gone' ? 'cohortTemplateGone' : 'cohortDraftFailed'), 7000);
       btn.disabled = false;
     }
   }
