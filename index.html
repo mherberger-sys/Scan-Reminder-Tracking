@@ -531,8 +531,8 @@ try{
               <p class="hint" style="margin:0;" data-i18n="cohortFromHint">Adresse d'envoi des brouillons (vide = ton adresse). Elle doit être configurée dans Gmail → Paramètres → Comptes → « Envoyer des e-mails en tant que ». Mémorisée pour ton compte.</p>
               <label for="cohortTemplate" class="filter-label" data-i18n="cohortTemplateLabel">Modèle d'email</label>
               <div class="scorecard-select-row" style="max-width:720px;">
-                <select id="cohortTemplate" class="inline-select" style="flex:1;"></select>
-                <button class="ghost btn-small" id="cohortLoadTemplatesBtn" data-i18n="cohortLoadTemplatesBtn">Charger mes brouillons Gmail</button>
+                <select id="cohortTemplate" class="inline-select" style="flex:1;min-width:0;text-overflow:ellipsis;"></select>
+                <button class="ghost btn-small nowrap-btn" id="cohortLoadTemplatesBtn" data-i18n="cohortLoadTemplatesBtn">Charger mes brouillons Gmail</button>
               </div>
               <p class="hint" style="margin:0;" data-i18n="cohortTemplateHint">Gmail ne donne pas accès à ses « Modèles » : enregistrez votre modèle comme brouillon Gmail (sans destinataire), chargez vos brouillons puis choisissez-le — son objet et son contenu (mise en forme, images, pièces jointes) sont repris dans chaque lot.</p>
               <div id="cohortManualFields" class="cohort-draft-form">

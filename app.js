@@ -3856,7 +3856,7 @@
     const isA = p=> COHORT_CALL_A_LEVELS.includes(p.commitment.toLowerCase());
 
     return {
-      fileName, total: patients.length, noDays: patients.length - withDays.length, emailKey,
+      fileName, total: patients.length, noDays: patients.length - withDays.length, emailKey, patients,
       email: { patients: emailPatients, emails, batches, fixed, invalid, duplicates, missing },
       callA: callPatients.filter(isA),
       callB: callPatients.filter(p=> !isA(p)),
@@ -3935,25 +3935,79 @@
     cohort = result;
     cohortDrafts = {};
     setDropzoneLoaded(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, file, data.length);
-    try{ localStorage.setItem(COHORT_STORAGE_KEY, JSON.stringify({ fileName: file.name, rows: data, savedAt: new Date().toISOString() })); }catch(e){ /* trop gros ou indisponible — pas grave */ }
+    cohortEls.dz.title = i18n('dzReplaceTitle');
+    saveCohortFile(file.name, result);
     renderCohorts();
+  }
+
+  // ---------------------------- Mémorisation du fichier ----------------------------
+  // Le fichier reste chargé d'un jour à l'autre sur cet appareil. On n'en garde que les colonnes
+  // utiles aux cohortes (bien plus léger qu'un export complet), dans IndexedDB — dont la place
+  // est bien plus grande que le localStorage, déjà occupé par les fichiers du Dashboard.
+  function compactCohortRows(result){
+    return result.patients.map(p=> ({
+      patient_profile_id: p.id,
+      firstname: p.raw.firstname || '',
+      lastname: p.raw.lastname || '',
+      doctor_name: p.doctor === '—' ? '' : p.doctor,
+      patient_commitment_level: p.commitment === '—' ? '' : p.commitment,
+      days_late: p.days === null ? '' : String(p.days),
+      patient_email: p.rawEmail,
+      patient_phone: p.phone,
+      patient_monitoring_url: p.url,
+    }));
+  }
+  function idbOpen(){
+    return new Promise((resolve, reject)=>{
+      if(!window.indexedDB){ reject(new Error('no-idb')); return; }
+      const req = indexedDB.open('scan-reminder-tracker', 1);
+      req.onupgradeneeded = ()=> req.result.createObjectStore('kv');
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+  async function idbSet(key, value){
+    const db = await idbOpen();
+    await new Promise((resolve, reject)=>{
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(value, key);
+      tx.oncomplete = resolve; tx.onerror = ()=> reject(tx.error);
+    });
+    db.close();
+  }
+  async function idbGet(key){
+    const db = await idbOpen();
+    const value = await new Promise((resolve, reject)=>{
+      const req = db.transaction('kv', 'readonly').objectStore('kv').get(key);
+      req.onsuccess = ()=> resolve(req.result); req.onerror = ()=> reject(req.error);
+    });
+    db.close();
+    return value;
+  }
+  async function saveCohortFile(fileName, result){
+    const record = { fileName, rows: compactCohortRows(result), savedAt: new Date().toISOString() };
+    try{ await idbSet(COHORT_STORAGE_KEY, record); try{ localStorage.removeItem(COHORT_STORAGE_KEY); }catch(e){} return; }
+    catch(e){ /* IndexedDB indisponible (navigation privée…) : repli localStorage */ }
+    try{ localStorage.setItem(COHORT_STORAGE_KEY, JSON.stringify(record)); }catch(e){ /* trop gros — pas grave */ }
   }
   wireDrop(cohortEls.input, cohortEls.dz, loadCohortFile);
   renderTemplateSelect();
 
-  // Reprise du dernier fichier après un rechargement (resté sur cet appareil uniquement).
-  try{
-    const saved = JSON.parse(localStorage.getItem(COHORT_STORAGE_KEY) || 'null');
-    if(saved && Array.isArray(saved.rows) && saved.rows.length){
-      const result = buildCohorts(saved.rows, saved.fileName);
-      if(!result.error){
-        cohort = result;
-        cohortEls.dz.classList.add('loaded');
-        cohortEls.dzLabel.textContent = i18n('dzRestoredLabel');
-        cohortEls.dzFile.innerHTML = `<span class="dz-file-name">${escapeHtml(saved.fileName)}</span><span class="dz-file-meta">${escapeHtml(i18n('restoredMeta', {count: saved.rows.length, date: new Date(saved.savedAt).toLocaleString(dateLocale())}))}</span>`;
-      }
-    }
-  }catch(e){ /* rien à reprendre */ }
+  // Reprise du dernier fichier (resté sur cet appareil uniquement), même le lendemain.
+  (async ()=>{
+    let saved = null;
+    try{ saved = await idbGet(COHORT_STORAGE_KEY); }catch(e){}
+    if(!saved){ try{ saved = JSON.parse(localStorage.getItem(COHORT_STORAGE_KEY) || 'null'); }catch(e){} }
+    if(!saved || !Array.isArray(saved.rows) || !saved.rows.length || cohort) return;
+    const result = buildCohorts(saved.rows, saved.fileName);
+    if(result.error) return;
+    cohort = result;
+    cohortEls.dz.classList.add('loaded');
+    cohortEls.dz.title = i18n('dzReplaceTitle');
+    cohortEls.dzLabel.textContent = i18n('dzRestoredLabel');
+    cohortEls.dzFile.innerHTML = `<span class="dz-file-name">${escapeHtml(saved.fileName)}</span><span class="dz-file-meta">${escapeHtml(i18n('restoredMeta', {count: saved.rows.length, date: new Date(saved.savedAt).toLocaleString(dateLocale())}))}</span>`;
+    renderCohorts();
+  })();
 
   // ---------------------------- Actions : copier, brouillon Gmail, export ----------------------------
   cohortEls.batches.addEventListener('click', e=>{

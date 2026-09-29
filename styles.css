@@ -617,3 +617,5 @@ body.signed-in.on-home .view-as-banner{top:66px;}
 .cohort-batch-info{display:flex;flex-direction:column;gap:2px;}
 .cohort-batch-actions{display:flex;gap:8px;flex-wrap:wrap;}
 body.privacy-mode #cohortResults, body.privacy-mode #dzCohortFile{filter:blur(6px);user-select:none;}
+
+.nowrap-btn{white-space:nowrap;flex:none;}
