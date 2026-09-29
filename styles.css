@@ -185,7 +185,7 @@ button.btn-small{padding:5px 10px;font-size:.72rem;}
 .home-hero{max-width:620px;display:flex;flex-direction:column;gap:12px;align-items:center;}
 .home-title{font-size:2.1rem;font-weight:800;margin:0;letter-spacing:-.02em;text-wrap:balance;}
 .home-sub{color:var(--muted);font-size:.95rem;margin:0;max-width:56ch;}
-.home-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;width:100%;max-width:900px;}
+.home-actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;width:100%;max-width:1080px;}
 .home-card{
   display:flex;flex-direction:column;align-items:flex-start;gap:9px;text-align:left;
   background:var(--surface);border:1px solid var(--border);border-radius:16px;
@@ -504,7 +504,7 @@ body.privacy-mode .user-chip-meta{
 .topbar-brand{display:flex;align-items:center;gap:9px;flex:none;}
 .topbar-logo{width:26px;height:26px;border-radius:8px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;flex:none;}
 .topbar .page-tabs{display:flex;gap:2px;flex:1;min-width:0;}
-.topbar .page-tab{border:none;border-radius:9px;padding:9px 12px;position:relative;background:none;color:var(--muted);font-size:.84rem;}
+.topbar .page-tab{border:none;border-radius:9px;padding:9px 11px;position:relative;background:none;color:var(--muted);font-size:.84rem;white-space:nowrap;}
 .topbar .page-tab:hover{color:var(--ink);background:var(--surface-2);}
 .topbar .page-tab.active{color:var(--ink);background:none;border:none;}
 .topbar .page-tab.active::after{content:"";position:absolute;left:12px;right:12px;bottom:3px;height:2px;border-radius:2px;background:var(--accent);}
@@ -570,6 +570,10 @@ body.signed-in.on-home .view-as-banner{top:66px;}
 /* Pas de contour de focus au clic souris (gardé pour la navigation au clavier). */
 .topbar button:focus:not(:focus-visible), .home-card:focus:not(:focus-visible){outline:none;}
 
+/* Deux lignes quand les onglets ne tiennent pas à côté du titre et des outils : la classe
+   .topbar-stacked est posée par app.js en mesurant la place réelle (et toujours sous 900 px). */
+.topbar.topbar-stacked{flex-wrap:wrap;row-gap:4px;}
+.topbar.topbar-stacked .page-tabs{order:3;flex-basis:100%;flex-wrap:wrap;}
 @media (max-width: 900px){
   .topbar{flex-wrap:wrap;row-gap:4px;}
   .topbar .page-tabs{order:3;flex-basis:100%;flex-wrap:wrap;}
@@ -586,3 +590,17 @@ body.signed-in.on-home .view-as-banner{top:66px;}
   .topbar .page-tab{padding:8px 9px;font-size:.8rem;}
   .menu-right{right:-4px;min-width:min(300px, calc(100vw - 40px));}
 }
+
+/* ===================== Onglet Cohortes ===================== */
+.section-title{font-weight:600;font-size:.9rem;}
+.cohort-rules{display:flex;flex-wrap:wrap;gap:8px;}
+.cohort-details{border:1px solid var(--border);border-radius:10px;padding:8px 12px;background:var(--bg);}
+.cohort-details summary{cursor:pointer;font-size:.8rem;font-weight:600;color:var(--accent-strong);}
+.cohort-details .table-scroll{margin-top:8px;max-height:260px;}
+.cohort-draft-form{display:flex;flex-direction:column;gap:6px;}
+.cohort-textarea{width:100%;max-width:720px;font-family:inherit;resize:vertical;min-height:80px;}
+.cohort-batches{display:flex;flex-direction:column;gap:8px;}
+.cohort-batch{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--bg);}
+.cohort-batch-info{display:flex;flex-direction:column;gap:2px;}
+.cohort-batch-actions{display:flex;gap:8px;flex-wrap:wrap;}
+body.privacy-mode #cohortResults, body.privacy-mode #dzCohortFile{filter:blur(6px);user-select:none;}

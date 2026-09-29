@@ -47,6 +47,7 @@ try{
           </div>
         </div>
       </div>
+      <button type="button" class="page-tab" id="tabCohortsBtn" data-i18n="tabCohorts">Cohortes</button>
       <button type="button" class="page-tab" id="tabTrendsBtn" data-i18n="tabTrends">Tendances</button>
       <button type="button" class="page-tab" id="tabTeamBtn" hidden data-i18n="tabTeam">Équipe</button>
       <button type="button" class="page-tab" id="tabDocsBtn" data-i18n="tabDocs">Documentation</button>
@@ -183,6 +184,11 @@ try{
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
         <span class="home-card-title" data-i18n="tabMySuivi">Dashboard</span>
         <span class="home-card-desc" data-i18n="homeDashboardDescApp">Importez vos deux fichiers, croisez-les et ajoutez la vérification à votre historique.</span>
+      </button>
+      <button type="button" class="home-card" id="homeCohortsBtn">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+        <span class="home-card-title" data-i18n="tabCohorts">Cohortes</span>
+        <span class="home-card-desc" data-i18n="homeCohortsDesc">Classez les patients en retard en cohortes Email et Appels, et préparez les brouillons Gmail.</span>
       </button>
       <button type="button" class="home-card" id="homeTrendsBtn">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
@@ -479,6 +485,77 @@ try{
       </table>
     </div>
   </section>
+
+  <div id="pageCohorts" class="page-dashboard" hidden>
+    <section class="panel">
+      <div class="charts-grid" style="grid-template-columns:1fr;">
+        <div class="chart-card">
+          <p class="chart-title" data-i18n="cohortsTitle">Cohortes de relance</p>
+          <p class="hint" style="margin:0;" data-i18n="cohortsIntro">Déposez l'export des patients en retard (CSV ou Excel) : l'app les répartit en cohortes Email et Appels selon leurs jours de retard et leur commitment level. Tout est traité dans votre navigateur — rien n'est enregistré sur le Drive.</p>
+          <label class="dropzone" id="dzCohort" for="fileCohort">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+            <span class="dz-label" id="dzCohortLabel" data-i18n="dzDefaultLabel">Déposer ou choisir un fichier (CSV ou Excel)</span>
+            <span class="dz-file" id="dzCohortFile"></span>
+          </label>
+          <input type="file" id="fileCohort" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel">
+          <div class="cohort-rules">
+            <span class="pill neutral" data-i18n="cohortRuleEmail">Email : 2 à 90 jours de retard · tous commitment levels</span>
+            <span class="pill neutral" data-i18n="cohortRuleCall">Appels : 30 jours de retard ou moins</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div id="cohortResults" hidden>
+      <section class="tiles" id="cohortTiles"></section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="section-title" data-i18n="cohortEmailTitle">Cohorte Email</span>
+          <span class="count-note" data-i18n="cohortRuleEmail">Email : 2 à 90 jours de retard · tous commitment levels</span>
+        </div>
+        <div class="charts-grid" style="grid-template-columns:1fr;">
+          <div class="chart-card">
+            <p class="hint" id="cohortEmailSummary" style="margin:0;"></p>
+            <details class="cohort-details" id="cohortFixesDetails">
+              <summary id="cohortFixesSummary"></summary>
+              <div class="table-scroll capped" id="cohortFixesBody"></div>
+            </details>
+            <details class="cohort-details" id="cohortInvalidDetails">
+              <summary id="cohortInvalidSummary"></summary>
+              <div class="table-scroll capped" id="cohortInvalidBody"></div>
+            </details>
+            <div class="cohort-draft-form">
+              <label for="cohortSubject" class="filter-label" data-i18n="cohortSubjectLabel">Objet du brouillon (facultatif)</label>
+              <input type="text" id="cohortSubject" class="save-input" style="width:100%;max-width:520px;">
+              <label for="cohortBody" class="filter-label" data-i18n="cohortBodyLabel">Message (facultatif)</label>
+              <textarea id="cohortBody" class="save-input cohort-textarea" rows="4"></textarea>
+              <p class="hint" style="margin:0;" data-i18n="cohortDraftHint">Chaque lot de 499 adresses devient un brouillon Gmail : destinataire = vous, adresses des patients en Cci (BCC). Vous le relisez et l'envoyez depuis Gmail.</p>
+            </div>
+            <div id="cohortBatches" class="cohort-batches"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <span class="section-title" data-i18n="cohortCallTitle">Cohorte Appels</span>
+          <span class="count-note" data-i18n="cohortRuleCall">Appels : 30 jours de retard ou moins</span>
+          <button class="ghost btn-small" id="cohortExportBtn" data-i18n="cohortExportBtn">Exporter les cohortes (Excel)</button>
+        </div>
+        <div class="charts-grid">
+          <div class="chart-card">
+            <p class="chart-title" id="cohortCallATitle"></p>
+            <div class="table-scroll capped" id="cohortCallABody"></div>
+          </div>
+          <div class="chart-card">
+            <p class="chart-title" id="cohortCallBTitle"></p>
+            <div class="table-scroll capped" id="cohortCallBBody"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
 
   <div id="pageTeam" class="page-dashboard" hidden>
     <section class="panel">

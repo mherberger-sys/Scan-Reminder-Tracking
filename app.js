@@ -95,6 +95,7 @@
     docsPanel: document.getElementById('docsPanel'), tabDocsBtn: document.getElementById('tabDocsBtn'),
     pageFiles: document.getElementById('pageFiles'), tabFilesBtn: document.getElementById('tabFilesBtn'),
     pageTeam: document.getElementById('pageTeam'), tabTeamBtn: document.getElementById('tabTeamBtn'),
+    pageCohorts: document.getElementById('pageCohorts'), tabCohortsBtn: document.getElementById('tabCohortsBtn'),
     pageHome: document.getElementById('pageHome'), tabHomeBtn: document.getElementById('tabHomeBtn'),
     homeTeamBtn: document.getElementById('homeTeamBtn'), homeGreeting: document.getElementById('homeGreeting'),
     importedFilesBody: document.getElementById('importedFilesBody'),
@@ -102,7 +103,7 @@
   };
 
   const ACTIVE_PAGE_STORAGE_KEY = 'src_active_page_v1';
-  const PAGES = ['home','dashboard','files','trends','team','docs'];
+  const PAGES = ['home','dashboard','files','cohorts','trends','team','docs'];
 
   // Un vrai rechargement (F5/Cmd+R ou bouton « Actualiser ») restaure l'état mémorisé (page active,
   // fiche docteur...) ; une ouverture fraîche de l'app repart toujours de l'Accueil.
@@ -139,6 +140,8 @@
     els.docsPanel.hidden = page !== 'docs';
     els.pageFiles.hidden = page !== 'files';
     els.pageTeam.hidden = page !== 'team';
+    els.pageCohorts.hidden = page !== 'cohorts';
+    els.tabCohortsBtn.classList.toggle('active', page === 'cohorts');
     els.doctorScopeBanner.style.display = (state.doctorScope && page !== 'home') ? 'flex' : 'none';
     els.tabDashboardBtn.classList.toggle('active', page === 'dashboard' || page === 'files');
     els.tabTrendsBtn.classList.toggle('active', page === 'trends');
@@ -155,6 +158,8 @@
   els.tabDashboardBtn.addEventListener('click', ()=> setActivePage('dashboard'));
   els.tabTrendsBtn.addEventListener('click', ()=> setActivePage('trends'));
   els.tabTeamBtn.addEventListener('click', ()=> setActivePage('team'));
+  els.tabCohortsBtn.addEventListener('click', ()=> setActivePage('cohorts'));
+  document.getElementById('homeCohortsBtn').addEventListener('click', ()=> setActivePage('cohorts'));
   els.tabDocsBtn.addEventListener('click', ()=> setActivePage('docs'));
   els.tabFilesBtn.addEventListener('click', ()=> setActivePage('files'));
 
@@ -2703,6 +2708,7 @@
     document.getElementById('gateLangSwitch').hidden = true;
     document.body.classList.add('signed-in');
     renderUserChip();
+    requestAnimationFrame(layoutTopbar);
   }
 
   function resetSessionState(){
@@ -3102,6 +3108,7 @@
     authEls.manageTeamsSection.hidden = !isAdmin();
     renderUserChip();
     renderHomeGreeting();
+    layoutTopbar();
     if(activePage === 'team' && !canSeeTeamTab()) setActivePage('dashboard');
     if(deferredTeamPage && canSeeTeamTab()){ deferredTeamPage = false; setActivePage('team'); }
     else if(poolLoaded) deferredTeamPage = false;
@@ -3636,6 +3643,347 @@
   }
   document.getElementById('purgeDataBtn').addEventListener('click', purgePatientData);
 
+  // =====================================================================================
+  // Cohortes : un export de patients (CSV/Excel) → cohorte Email + 2 listes d'appels.
+  // Tout est calculé dans le navigateur ; rien n'est envoyé sur le Drive. Seul le brouillon
+  // Gmail (lots de 499 adresses en Cci) part vers la boîte Gmail de la personne connectée.
+  //   - Email  : 2 à 90 jours de retard, tous commitment levels, emails nettoyés et dédoublonnés ;
+  //   - Appels : 30 jours de retard ou moins, en 2 listes — Involved + Dedicated / tout le reste.
+  // =====================================================================================
+  const COHORT_EMAIL_MIN_DAYS = 2;
+  const COHORT_EMAIL_MAX_DAYS = 90;
+  const COHORT_CALL_MAX_DAYS = 30;
+  const COHORT_BATCH_SIZE = 499;
+  const COHORT_CALL_A_LEVELS = ['involved', 'dedicated'];
+  const COHORT_STORAGE_KEY = 'src_cohort_file_v1';
+  const GMAIL_SCOPE = 'https://www.googleapis.com/auth/gmail.compose';
+
+  const cohortEls = {
+    input: document.getElementById('fileCohort'),
+    dz: document.getElementById('dzCohort'),
+    dzLabel: document.getElementById('dzCohortLabel'),
+    dzFile: document.getElementById('dzCohortFile'),
+    results: document.getElementById('cohortResults'),
+    tiles: document.getElementById('cohortTiles'),
+    emailSummary: document.getElementById('cohortEmailSummary'),
+    fixesDetails: document.getElementById('cohortFixesDetails'),
+    fixesSummary: document.getElementById('cohortFixesSummary'),
+    fixesBody: document.getElementById('cohortFixesBody'),
+    invalidDetails: document.getElementById('cohortInvalidDetails'),
+    invalidSummary: document.getElementById('cohortInvalidSummary'),
+    invalidBody: document.getElementById('cohortInvalidBody'),
+    subject: document.getElementById('cohortSubject'),
+    body: document.getElementById('cohortBody'),
+    batches: document.getElementById('cohortBatches'),
+    callATitle: document.getElementById('cohortCallATitle'),
+    callABody: document.getElementById('cohortCallABody'),
+    callBTitle: document.getElementById('cohortCallBTitle'),
+    callBBody: document.getElementById('cohortCallBBody'),
+    exportBtn: document.getElementById('cohortExportBtn'),
+  };
+  let cohort = null;     // résultat du dernier fichier : { fileName, total, email, callA, callB, skipped }
+  let cohortDrafts = {}; // index de lot → true une fois le brouillon créé
+
+  // ---------------------------- Nettoyage des emails ----------------------------
+  // Fautes de frappe fréquentes sur les domaines, corrigées vers le bon domaine.
+  const EMAIL_DOMAIN_FIXES = {
+    'gmal.com':'gmail.com','gmial.com':'gmail.com','gmai.com':'gmail.com','gamil.com':'gmail.com','gmaill.com':'gmail.com',
+    'gnail.com':'gmail.com','gmil.com':'gmail.com','gmail.co':'gmail.com','gmail.cm':'gmail.com','gmail.om':'gmail.com',
+    'gmail.fr':'gmail.com','gmail.comm':'gmail.com','gmailcom':'gmail.com','gmali.com':'gmail.com','gimail.com':'gmail.com',
+    'hotmial.com':'hotmail.com','hotmal.com':'hotmail.com','hotmai.com':'hotmail.com','hotmil.com':'hotmail.com','homail.com':'hotmail.com',
+    'hotmail.co':'hotmail.com','hotmail.cm':'hotmail.com','hotmial.fr':'hotmail.fr','hotmal.fr':'hotmail.fr','hotmai.fr':'hotmail.fr','hotmail.fe':'hotmail.fr',
+    'yaho.com':'yahoo.com','yahooo.com':'yahoo.com','yahoo.co':'yahoo.com','yaho.fr':'yahoo.fr','yahoo.fe':'yahoo.fr',
+    'outlok.com':'outlook.com','outloo.com':'outlook.com','outlook.co':'outlook.com','outlok.fr':'outlook.fr','outlook.fe':'outlook.fr',
+    'iclod.com':'icloud.com','icoud.com':'icloud.com','icloud.co':'icloud.com','iclould.com':'icloud.com',
+    'wanado.fr':'wanadoo.fr','wanadoo.fe':'wanadoo.fr','orange.fe':'orange.fr','orage.fr':'orange.fr',
+    'laposte.ne':'laposte.net','laposte.nte':'laposte.net','free.fe':'free.fr','sfr.fe':'sfr.fr',
+    'gmx.fe':'gmx.fr','live.fe':'live.fr','msn.co':'msn.com',
+  };
+  // Extensions qui n'existent pas, corrigées en .com (ex. « .con », « .cmo »).
+  const FAKE_TLD_FIXES = { con:'com', cmo:'com', comm:'com', ocm:'com', vom:'com', xom:'com', cpm:'com', coml:'com' };
+  const EMAIL_VALID_RE = /^[a-z0-9._%'-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/;
+
+  // Renvoie { email, fixes:[…] } avec l'adresse corrigée, ou { email:null } si elle reste invalide.
+  function cleanEmail(raw){
+    const fixes = [];
+    let s = String(raw || '').trim().toLowerCase().replace(/^mailto:/, '').replace(/^<|>$/g, '').replace(/\s+/g, '');
+    if(!s) return { email: null, fixes };
+    const at = s.lastIndexOf('@');
+    if(at <= 0) return { email: null, fixes };
+    let local = s.slice(0, at).replace(/\.+$/, '');
+    let domain = s.slice(at + 1).replace(/,/g, '.').replace(/\.{2,}/g, '.').replace(/^\.+|\.+$/g, '');
+    if(domain !== s.slice(at + 1)) fixes.push('format');
+    // « prenom+12345@… » → « prenom@… » (alias à retirer).
+    const plus = local.indexOf('+');
+    if(plus > 0){ local = local.slice(0, plus); fixes.push('plus'); }
+    if(EMAIL_DOMAIN_FIXES[domain]){ domain = EMAIL_DOMAIN_FIXES[domain]; fixes.push('domain'); }
+    else {
+      const parts = domain.split('.');
+      const tld = parts[parts.length - 1];
+      if(parts.length > 1 && FAKE_TLD_FIXES[tld]){
+        parts[parts.length - 1] = FAKE_TLD_FIXES[tld];
+        domain = parts.join('.');
+        if(EMAIL_DOMAIN_FIXES[domain]) domain = EMAIL_DOMAIN_FIXES[domain];
+        fixes.push('domain');
+      }
+    }
+    const email = local + '@' + domain;
+    return EMAIL_VALID_RE.test(email) ? { email, fixes } : { email: null, fixes };
+  }
+
+  // ---------------------------- Lecture du fichier ----------------------------
+  const COHORT_EMAIL_ALIASES = ['patientemail','email','mail','emailaddress','adresseemail','adressemail','courriel','emailpatient','patientmail'];
+  const COHORT_DAYS_ALIASES = ['dayslate','daylate','joursderetard','retard','daysoverdue','late'];
+  const COHORT_COMMIT_ALIASES = ['patientcommitmentlevel','commitmentlevel','commitment','engagement'];
+
+  function findEmailColumn(data){
+    const key = findColumnByAliases(data, COHORT_EMAIL_ALIASES, normalizeAggressive);
+    if(key) return key;
+    // Repli : la colonne dont la majorité des valeurs contient un « @ ».
+    const keys = Object.keys(data[0] || {});
+    let best = null, bestScore = 0;
+    keys.forEach(k=>{
+      let total = 0, withAt = 0;
+      data.slice(0, 300).forEach(r=>{ const v = String(r[k] || '').trim(); if(v){ total++; if(/^[^\s@]+@[^\s@]+$/.test(v)) withAt++; } });
+      const score = total ? withAt / total : 0;
+      if(score > 0.6 && score > bestScore && !/url|link|lien/i.test(k)){ best = k; bestScore = score; }
+    });
+    return best;
+  }
+
+  function buildCohorts(data, fileName){
+    ensurePatientIdField(data);
+    ensurePhoneField(data);
+    const emailKey = findEmailColumn(data);
+    const daysKey = findColumnByAliases(data, COHORT_DAYS_ALIASES, normalizeAggressive);
+    const commitKey = findColumnByAliases(data, COHORT_COMMIT_ALIASES, normalizeAggressive);
+    if(!daysKey) return { error: i18n('cohortNoDaysColumn') };
+
+    const patients = data.map(r=>{
+      const days = parseFloat(String(r[daysKey] || '').replace(',', '.'));
+      return {
+        raw: r,
+        id: String(r.patient_profile_id || '').trim(),
+        name: [r.firstname, r.lastname].filter(Boolean).join(' ') || '—',
+        doctor: r.doctor_name || '—',
+        commitment: String((commitKey && r[commitKey]) || '').trim() || '—',
+        days: isNaN(days) ? null : days,
+        phone: r.patient_phone || '',
+        url: r.patient_monitoring_url || '',
+        rawEmail: emailKey ? String(r[emailKey] || '').trim() : '',
+      };
+    });
+    const withDays = patients.filter(p=> p.days !== null);
+
+    // --- Email : 2 à 90 jours, tous commitment levels ---
+    const emailPatients = withDays.filter(p=> p.days >= COHORT_EMAIL_MIN_DAYS && p.days <= COHORT_EMAIL_MAX_DAYS);
+    const seen = new Set();
+    const emails = [], fixed = [], invalid = [];
+    let duplicates = 0, missing = 0;
+    emailPatients.forEach(p=>{
+      if(!p.rawEmail){ missing++; return; }
+      const res = cleanEmail(p.rawEmail);
+      if(!res.email){ invalid.push(p); return; }
+      p.email = res.email;
+      if(res.fixes.length && res.email !== p.rawEmail.toLowerCase()) fixed.push({ from: p.rawEmail, to: res.email, fixes: res.fixes });
+      if(seen.has(res.email)){ duplicates++; return; }
+      seen.add(res.email);
+      emails.push(res.email);
+    });
+    const batches = [];
+    for(let i = 0; i < emails.length; i += COHORT_BATCH_SIZE) batches.push(emails.slice(i, i + COHORT_BATCH_SIZE));
+
+    // --- Appels : 30 jours ou moins, 2 listes selon le commitment level ---
+    const callPatients = withDays.filter(p=> p.days <= COHORT_CALL_MAX_DAYS).sort((a,b)=> b.days - a.days);
+    const isA = p=> COHORT_CALL_A_LEVELS.includes(p.commitment.toLowerCase());
+
+    return {
+      fileName, total: patients.length, noDays: patients.length - withDays.length, emailKey,
+      email: { patients: emailPatients, emails, batches, fixed, invalid, duplicates, missing },
+      callA: callPatients.filter(isA),
+      callB: callPatients.filter(p=> !isA(p)),
+    };
+  }
+
+  // ---------------------------- Affichage ----------------------------
+  function cohortPatientTable(list){
+    if(!list.length) return `<p class="hint">${escapeHtml(i18n('cohortEmptyList'))}</p>`;
+    return `<table class="mini-table">
+      <thead><tr><th>${i18n('thPatientId')}</th><th>${i18n('thDoctor')}</th><th>${i18n('thCommitment')}</th><th class="num">${i18n('thDaysLate')}</th><th>${i18n('thPhone')}</th><th>${i18n('thMonitoring')}</th></tr></thead>
+      <tbody>${list.map(p=> `<tr>
+        <td class="mono-num">${escapeHtml(p.id || '—')}</td>
+        <td>${escapeHtml(p.doctor)}</td>
+        <td><span class="pill ${classifyCommitment(p.commitment)}">${escapeHtml(p.commitment)}</span></td>
+        <td class="pct">${p.days}</td>
+        <td class="mono-num">${p.phone ? escapeHtml(p.phone) : `<span class="hint">${escapeHtml(i18n('cohortNoPhone'))}</span>`}</td>
+        <td>${p.url ? `<a class="link" href="${escapeAttr(p.url)}" target="_blank" rel="noopener">${i18n('openLinkLabel')} ↗</a>` : '—'}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderCohorts(){
+    if(!cohort){ cohortEls.results.hidden = true; return; }
+    cohortEls.results.hidden = false;
+    const e = cohort.email;
+    cohortEls.tiles.innerHTML = `
+      <div class="tile"><span class="tile-label">${i18n('cohortTilePatients')}</span><span class="tile-value">${cohort.total}</span><span class="tile-sub">${escapeHtml(cohort.fileName)}</span></div>
+      <div class="tile"><span class="tile-label">${i18n('cohortTileEmail')}</span><span class="tile-value">${e.emails.length}</span><span class="tile-sub">${i18n('cohortTileEmailSub', {batches: e.batches.length})}</span></div>
+      <div class="tile"><span class="tile-label">${i18n('cohortTileCallA')}</span><span class="tile-value">${cohort.callA.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>
+      <div class="tile"><span class="tile-label">${i18n('cohortTileCallB')}</span><span class="tile-value">${cohort.callB.length}</span><span class="tile-sub">${i18n('cohortTileCallSub')}</span></div>`;
+
+    cohortEls.emailSummary.innerHTML = cohort.emailKey
+      ? i18n('cohortEmailSummary', { patients: e.patients.length, emails: e.emails.length, fixed: e.fixed.length, duplicates: e.duplicates, invalid: e.invalid.length, missing: e.missing })
+      : escapeHtml(i18n('cohortNoEmailColumn'));
+
+    cohortEls.fixesDetails.hidden = !e.fixed.length;
+    cohortEls.fixesSummary.textContent = i18n('cohortFixesSummary', { count: e.fixed.length });
+    cohortEls.fixesBody.innerHTML = `<table class="mini-table"><thead><tr><th>${i18n('cohortThBefore')}</th><th>${i18n('cohortThAfter')}</th><th>${i18n('cohortThFix')}</th></tr></thead><tbody>${
+      e.fixed.map(f=> `<tr><td class="mono-num">${escapeHtml(f.from)}</td><td class="mono-num">${escapeHtml(f.to)}</td><td class="hint">${f.fixes.map(x=> escapeHtml(i18n('cohortFix_' + x))).join(', ')}</td></tr>`).join('')
+    }</tbody></table>`;
+    cohortEls.invalidDetails.hidden = !e.invalid.length;
+    cohortEls.invalidSummary.textContent = i18n('cohortInvalidSummary', { count: e.invalid.length });
+    cohortEls.invalidBody.innerHTML = `<table class="mini-table"><thead><tr><th>${i18n('thPatientId')}</th><th>${i18n('cohortThEmail')}</th></tr></thead><tbody>${
+      e.invalid.map(p=> `<tr><td class="mono-num">${escapeHtml(p.id || '—')}</td><td class="mono-num">${escapeHtml(p.rawEmail)}</td></tr>`).join('')
+    }</tbody></table>`;
+
+    cohortEls.batches.innerHTML = e.batches.length ? e.batches.map((b, i)=> `
+      <div class="cohort-batch">
+        <div class="cohort-batch-info">
+          <strong>${escapeHtml(i18n('cohortBatchLabel', { n: i + 1, total: e.batches.length }))}</strong>
+          <span class="hint">${escapeHtml(i18n('cohortBatchCount', { count: b.length }))}</span>
+        </div>
+        <div class="cohort-batch-actions">
+          <button class="ghost btn-small" data-cohort-copy="${i}">${i18n('cohortCopyBtn')}</button>
+          <button class="primary btn-small" data-cohort-draft="${i}">${cohortDrafts[i] ? i18n('cohortDraftDoneBtn') : i18n('cohortDraftBtn')}</button>
+        </div>
+      </div>`).join('') + `<a class="link" href="https://mail.google.com/mail/u/0/#drafts" target="_blank" rel="noopener">${i18n('cohortOpenDrafts')} ↗</a>`
+      : `<p class="hint">${escapeHtml(i18n('cohortNoEmails'))}</p>`;
+
+    cohortEls.callATitle.textContent = i18n('cohortCallATitle', { count: cohort.callA.length });
+    cohortEls.callABody.innerHTML = cohortPatientTable(cohort.callA);
+    cohortEls.callBTitle.textContent = i18n('cohortCallBTitle', { count: cohort.callB.length });
+    cohortEls.callBBody.innerHTML = cohortPatientTable(cohort.callB);
+  }
+
+  async function loadCohortFile(file){
+    let data;
+    try{ data = await parseFile(file); }catch(e){ setDropzoneError(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, i18n('toastHeadersNotRecognized')); return; }
+    const result = buildCohorts(data, file.name);
+    if(result.error){
+      cohort = null;
+      setDropzoneError(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, result.error);
+      renderCohorts();
+      return;
+    }
+    cohort = result;
+    cohortDrafts = {};
+    setDropzoneLoaded(cohortEls.dz, cohortEls.dzLabel, cohortEls.dzFile, file, data.length);
+    try{ localStorage.setItem(COHORT_STORAGE_KEY, JSON.stringify({ fileName: file.name, rows: data, savedAt: new Date().toISOString() })); }catch(e){ /* trop gros ou indisponible — pas grave */ }
+    renderCohorts();
+  }
+  wireDrop(cohortEls.input, cohortEls.dz, loadCohortFile);
+
+  // Reprise du dernier fichier après un rechargement (resté sur cet appareil uniquement).
+  try{
+    const saved = JSON.parse(localStorage.getItem(COHORT_STORAGE_KEY) || 'null');
+    if(saved && Array.isArray(saved.rows) && saved.rows.length){
+      const result = buildCohorts(saved.rows, saved.fileName);
+      if(!result.error){
+        cohort = result;
+        cohortEls.dz.classList.add('loaded');
+        cohortEls.dzLabel.textContent = i18n('dzRestoredLabel');
+        cohortEls.dzFile.innerHTML = `<span class="dz-file-name">${escapeHtml(saved.fileName)}</span><span class="dz-file-meta">${escapeHtml(i18n('restoredMeta', {count: saved.rows.length, date: new Date(saved.savedAt).toLocaleString(dateLocale())}))}</span>`;
+      }
+    }
+  }catch(e){ /* rien à reprendre */ }
+
+  // ---------------------------- Actions : copier, brouillon Gmail, export ----------------------------
+  cohortEls.batches.addEventListener('click', e=>{
+    const copyBtn = e.target.closest('[data-cohort-copy]');
+    if(copyBtn){
+      const batch = cohort.email.batches[parseInt(copyBtn.getAttribute('data-cohort-copy'), 10)];
+      navigator.clipboard.writeText(batch.join(', ')).then(()=> showToast(i18n('cohortCopied', { count: batch.length }))).catch(()=>{});
+      return;
+    }
+    const draftBtn = e.target.closest('[data-cohort-draft]');
+    if(draftBtn) createCohortDraft(parseInt(draftBtn.getAttribute('data-cohort-draft'), 10), draftBtn);
+  });
+
+  // Autorisation Gmail demandée à part (au premier brouillon seulement), pour que la connexion
+  // à l'app elle-même ne réclame pas l'accès à Gmail. Le jeton reste en mémoire le temps de la page.
+  let gmailToken = null, gmailTokenExpiresAt = 0;
+  function getGmailToken(){
+    return new Promise((resolve, reject)=>{
+      if(gmailToken && Date.now() < gmailTokenExpiresAt){ resolve(gmailToken); return; }
+      if(!window.google || !google.accounts){ reject(new Error('gsi-unavailable')); return; }
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GMAIL_SCOPE,
+        hint: currentUser ? currentUser.email : undefined,
+        callback: r=>{
+          if(r.error){ reject(new Error(r.error)); return; }
+          gmailToken = r.access_token;
+          gmailTokenExpiresAt = Date.now() + ((Number(r.expires_in) || 3600) - 60) * 1000;
+          resolve(gmailToken);
+        },
+        error_callback: err=> reject(new Error((err && err.type) || 'popup')),
+      });
+      client.requestAccessToken();
+    });
+  }
+
+  function mimeHeaderUtf8(text){ return '=?UTF-8?B?' + btoa(unescape(encodeURIComponent(text))) + '?='; }
+  function base64UrlUtf8(text){ return btoa(unescape(encodeURIComponent(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+
+  async function createCohortDraft(index, btn){
+    if(!currentUser) return;
+    const batch = cohort && cohort.email.batches[index];
+    if(!batch || !batch.length) return;
+    // Le jeton doit être demandé tout de suite (clic de l'utilisateur), avant toute autre attente.
+    const tokenPromise = getGmailToken();
+    btn.disabled = true;
+    try{
+      const token = await tokenPromise;
+      const subject = cohortEls.subject.value.trim();
+      const mime = [
+        `To: ${currentUser.email}`,
+        // Une adresse par ligne (en-tête « plié ») : évite les lignes trop longues pour les serveurs mail.
+        'Bcc: ' + batch.join(',\r\n '),
+        `Subject: ${subject ? mimeHeaderUtf8(subject) : ''}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: 8bit',
+        '',
+        cohortEls.body.value || '',
+      ].join('\r\n');
+      const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/drafts', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: { raw: base64UrlUtf8(mime) } }),
+      });
+      if(res.status === 401){ gmailToken = null; throw new Error('expired'); }
+      if(!res.ok) throw new Error('gmail-' + res.status);
+      cohortDrafts[index] = true;
+      showToast(i18n('cohortDraftCreated', { n: index + 1, count: batch.length }));
+      renderCohorts();
+    }catch(e){
+      showToast(i18n(/access_denied|popup/.test(e.message) ? 'cohortDraftDenied' : 'cohortDraftFailed'));
+      btn.disabled = false;
+    }
+  }
+
+  cohortEls.exportBtn.addEventListener('click', ()=>{
+    if(!cohort) return;
+    const header = ['patient_profile_id','patient','doctor_name','patient_commitment_level','days_late','phone','monitoring_url'];
+    const toAoa = list=> [header].concat(list.map(p=> [p.id, p.name, p.doctor, p.commitment, p.days, p.phone, p.url]));
+    const wb = XLSX.utils.book_new();
+    const emailSheet = [['email']].concat(cohort.email.emails.map(e=> [e]));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(emailSheet), sanitizeSheetName(i18n('cohortSheetEmail'), new Set()));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callA)), sanitizeSheetName(i18n('cohortSheetCallA'), new Set()));
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callB)), sanitizeSheetName(i18n('cohortSheetCallB'), new Set()));
+    const d = new Date();
+    saveFile(`cohortes-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  });
+
   function refreshAuthI18n(){
     renderAuthStatus();
     renderGoogleBtnLabel();
@@ -3650,6 +3998,8 @@
     renderUserChip();
     renderHomeGreeting();
     renderSyncStatus();
+    renderCohorts();
+    layoutTopbar();
     if(activePage === 'team') renderTeamPage();
   }
 
@@ -3708,6 +4058,22 @@
     });
   });
   document.addEventListener('click', e=>{ if(!e.target.closest('.menu')) closeMenus(); });
+
+  // Barre du haut sur une ou deux lignes selon la place : on mesure la largeur naturelle des
+  // onglets (sur une ligne) et on bascule sur deux lignes seulement si elle dépasse l'espace libre.
+  function layoutTopbar(){
+    const bar = document.getElementById('topbar');
+    const nav = els.pageTabsRow;
+    if(!bar || nav.hidden) return;
+    bar.classList.remove('topbar-stacked');
+    const tabsWidth = Array.from(nav.children).reduce((w, c)=> w + (c.hidden ? 0 : c.getBoundingClientRect().width), 0) + 4 * nav.children.length;
+    const brand = bar.querySelector('.topbar-brand').getBoundingClientRect().width;
+    const right = bar.querySelector('.topbar-right').getBoundingClientRect().width;
+    const free = bar.clientWidth - brand - right - 60;
+    bar.classList.toggle('topbar-stacked', tabsWidth > free);
+  }
+  if(window.ResizeObserver) new ResizeObserver(()=> layoutTopbar()).observe(document.getElementById('topbar'));
+  window.addEventListener('resize', layoutTopbar);
   document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeMenus(); });
   ['editProfileBtn', 'signOutBtn'].forEach(id=> document.getElementById(id).addEventListener('click', ()=> closeMenus()));
 

@@ -4,6 +4,11 @@ App installable (PWA) qui réunit l'outil individuel et la vue collective de l'�
 
 - **Mon suivi** : liste des patients à contacter + export « scan yesterday » → dashboard → « Ajouter à l'historique ».
   L'historique est enregistré directement dans le dossier Google Drive partagé (un fichier `history-<personne>.json` par personne).
+- **Cohortes** : un export de patients (CSV/Excel) → cohorte Email (2 à 90 jours de retard, tous commitment levels ;
+  emails nettoyés — alias « +… » retirés, doublons supprimés, fautes de domaine corrigées — puis brouillons Gmail de
+  499 adresses en Cci) et cohorte Appels (30 jours ou moins : Involved + Dedicated / tous les autres), exportables en Excel.
+  Traitement local uniquement ; le brouillon Gmail demande l'autorisation `gmail.compose` au premier clic
+  (l'API Gmail doit être activée dans le projet Google Cloud).
 - **Tendances** : taux de scan par jour, commitment level, fiche docteur, top docteurs Scan rookie/NSPTM, Aircall, comparaison.
 - **Équipe** (managers et admins) : comparaison entre équipes, détail par CX, fichiers de données, gestion des équipes/rôles (admin).
 
