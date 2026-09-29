@@ -154,7 +154,6 @@
   document.getElementById('homeDashboardBtn').addEventListener('click', ()=> setActivePage('dashboard'));
   document.getElementById('homeTrendsBtn').addEventListener('click', ()=> setActivePage('trends'));
   els.homeTeamBtn.addEventListener('click', ()=> setActivePage('team'));
-  document.getElementById('homeDocsBtn').addEventListener('click', ()=> setActivePage('docs'));
   els.tabDashboardBtn.addEventListener('click', ()=> setActivePage('dashboard'));
   els.tabTrendsBtn.addEventListener('click', ()=> setActivePage('trends'));
   els.tabTeamBtn.addEventListener('click', ()=> setActivePage('team'));
