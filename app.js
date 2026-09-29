@@ -4117,7 +4117,7 @@
     cohort.channel = cohortChannel;
     cohortSource = saved.source && saved.source.dataUrl ? saved.source : null;
     cohortEls.dz.classList.add('loaded');
-    cohortEls.dz.title = cohortSource ? dzLoadedTitle() : i18n('dzReplaceTitle');
+    cohortEls.dz.title = cohortSource ? dzLoadedTitle() : i18n('dzNoCopyTitle');
     cohortEls.dzLabel.textContent = i18n('dzRestoredLabel');
     cohortEls.dzFile.innerHTML = `<span class="dz-file-name">${escapeHtml(saved.fileName)}</span><span class="dz-file-meta">${escapeHtml(i18n('restoredMeta', {count: saved.rows.length, date: new Date(saved.savedAt).toLocaleString(dateLocale())}))}</span>`;
     renderCohorts();
