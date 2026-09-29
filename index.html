@@ -514,14 +514,14 @@ try{
 
     <div id="cohortResults" hidden>
       <section class="tiles" id="cohortTiles"></section>
-      <div class="cohort-toolbar">
-        <button class="ghost btn-small" id="cohortExportBtn" data-i18n="cohortExportBtn">Exporter la cohorte (Excel)</button>
-      </div>
 
       <section class="panel" id="cohortEmailPanel">
         <div class="panel-head">
-          <span class="section-title" data-i18n="cohortEmailTitle">Cohorte Email</span>
-          <span class="count-note" data-i18n="cohortRuleEmail">Email : 2 à 90 jours de retard · tous commitment levels</span>
+          <div class="cohort-head-title">
+            <span class="section-title" data-i18n="cohortEmailTitle">Cohorte Email</span>
+            <span class="count-note" data-i18n="cohortRuleEmail">Email : 2 à 90 jours de retard · tous commitment levels</span>
+          </div>
+          <button class="ghost btn-small" data-cohort-export data-i18n="cohortExportBtn">Exporter les listes (Excel)</button>
         </div>
         <div class="charts-grid" style="grid-template-columns:1fr;">
           <div class="chart-card">
@@ -559,10 +559,13 @@ try{
 
       <section class="panel" id="cohortCallPanel">
         <div class="panel-head">
-          <span class="section-title" data-i18n="cohortCallTitle">Cohorte Appels</span>
-          <span class="count-note" data-i18n="cohortRuleCall">Appels : 30 jours de retard ou moins</span>
+          <div class="cohort-head-title">
+            <span class="section-title" data-i18n="cohortCallTitle">Cohorte Appels</span>
+            <span class="count-note" data-i18n="cohortRuleCall">Appels : 30 jours de retard ou moins</span>
+          </div>
+          <button class="ghost btn-small" data-cohort-export data-i18n="cohortExportBtn">Exporter les listes (Excel)</button>
         </div>
-        <div class="charts-grid">
+        <div class="charts-grid cohort-call-grid">
           <div class="chart-card">
             <p class="chart-title" id="cohortCallATitle"></p>
             <div class="table-scroll capped" id="cohortCallABody"></div>

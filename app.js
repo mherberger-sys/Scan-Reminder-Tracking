@@ -3709,7 +3709,6 @@
     callABody: document.getElementById('cohortCallABody'),
     callBTitle: document.getElementById('cohortCallBTitle'),
     callBBody: document.getElementById('cohortCallBBody'),
-    exportBtn: document.getElementById('cohortExportBtn'),
     template: document.getElementById('cohortTemplate'),
     loadTemplatesBtn: document.getElementById('cohortLoadTemplatesBtn'),
     manualFields: document.getElementById('cohortManualFields'),
@@ -4290,21 +4289,23 @@
     }
   }
 
-  cohortEls.exportBtn.addEventListener('click', ()=>{
+  // Export Excel des listes de la cohorte affichée : Email = la liste d'adresses ; Appels = un
+  // onglet par liste (Involved + Dedicated, puis les autres).
+  function exportCohort(part){
     if(!cohort) return;
     const header = ['patient_profile_id','patient','doctor_name','patient_commitment_level','days_late','phone','monitoring_url'];
     const toAoa = list=> [header].concat(list.map(p=> [p.id, p.name, p.doctor, p.commitment, p.days, p.phone, p.url]));
     const wb = XLSX.utils.book_new();
-    if(cohortChannel === 'email'){
-      const emailSheet = [['email']].concat(cohort.email.emails.map(e=> [e]));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(emailSheet), sanitizeSheetName(i18n('cohortSheetEmail'), new Set()));
-    } else {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callA)), sanitizeSheetName(i18n('cohortSheetCallA'), new Set()));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(toAoa(cohort.callB)), sanitizeSheetName(i18n('cohortSheetCallB'), new Set()));
-    }
+    const add = (aoa, nameKey)=> XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), sanitizeSheetName(i18n(nameKey), new Set()));
+    let suffix;
+    if(part === 'A'){ add(toAoa(cohort.callA), 'cohortSheetCallA'); suffix = 'appels-involved-dedicated'; }
+    else if(part === 'B'){ add(toAoa(cohort.callB), 'cohortSheetCallB'); suffix = 'appels-autres'; }
+    else if(cohortChannel === 'email'){ add([['email']].concat(cohort.email.emails.map(e=> [e])), 'cohortSheetEmail'); suffix = 'email'; }
+    else { add(toAoa(cohort.callA), 'cohortSheetCallA'); add(toAoa(cohort.callB), 'cohortSheetCallB'); suffix = 'appels'; }
     const d = new Date();
-    saveFile(`cohorte-${cohortChannel === 'email' ? 'email' : 'appels'}-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  });
+    saveFile(`cohorte-${suffix}-${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}.xlsx`, XLSX.write(wb, { bookType: 'xlsx', type: 'array' }), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
+  document.querySelectorAll('[data-cohort-export]').forEach(b=> b.addEventListener('click', ()=> exportCohort('all')));
 
   function refreshAuthI18n(){
     renderAuthStatus();

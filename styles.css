@@ -626,4 +626,9 @@ body.privacy-mode #cohortResults, body.privacy-mode #dzCohortFile{filter:blur(6p
 .seg-control button:hover{color:var(--ink);}
 .seg-control button.active{background:var(--accent);color:#fff;}
 .seg-control button.active[data-cohort-channel="email"]{background:var(--series-email);}
-.cohort-toolbar{display:flex;justify-content:flex-end;}
+#cohortResults:not([hidden]){display:flex;flex-direction:column;gap:14px;}
+.cohort-call-grid{grid-template-columns:1fr;gap:30px;}
+#pageCohorts .charts-grid{padding:22px;}
+#pageCohorts .chart-card{gap:12px;}
+.cohort-head-title{display:flex;flex-direction:column;gap:3px;}
+#pageCohorts .panel-head{padding:16px 22px;}
